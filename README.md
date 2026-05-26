@@ -1,11 +1,11 @@
 # Instalasi Frontend 
 
 1. Install Yarn
-``bash
+```bash
 yarn install
-``
+```
 
 2. Jalankan project
-``bash
+```bash
 yarn dev
-``
+```
