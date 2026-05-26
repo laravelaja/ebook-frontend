@@ -3,7 +3,7 @@ import { IconHome, IconBook, IconSearch, IconUser } from '@tabler/icons-react';
 
 const NAV_ITEMS = [
   { label: 'Home', path: '/', icon: IconHome },
-  { label: 'Library', path: '/library', icon: IconBook },
+  { label: 'Ebook', path: '/ebooks', icon: IconBook },
   { label: 'Search', path: '/search', icon: IconSearch },
   { label: 'Profile', path: '/profile', icon: IconUser },
 ];
@@ -11,6 +11,11 @@ const NAV_ITEMS = [
 export const BottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Hide bottom nav on ebook reader page
+  if (location.pathname.endsWith('/read')) {
+    return null;
+  }
 
   return (
     <div className="w-full h-20 min-h-20 bg-white border-t border-slate-200 flex items-center justify-around shrink-0 pb-5 pt-2 px-2 z-100">
