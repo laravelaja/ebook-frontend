@@ -1,14 +1,27 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { TOP_EBOOKS, CATEGORIES } from '../../../../data/EbookDummy';
 import { SearchInput } from '../../components/SearchInput';
 import { Chategory } from '../../components/Chategory';
+import { IconSearch } from '@tabler/icons-react';
 
 export const EbookList = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Semua');
+  
+  // Initialize from category parameter passed in navigate state
+  const initialCategory = (location.state as any)?.category || 'Semua';
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+
+  // Sync state if navigation target changes
+  useEffect(() => {
+    const routeCategory = (location.state as any)?.category;
+    if (routeCategory) {
+      setSelectedCategory(routeCategory);
+    }
+  }, [location.state]);
 
   // Filter logic
   const filteredEbooks = TOP_EBOOKS.filter((book) => {
@@ -81,7 +94,7 @@ export const EbookList = () => {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400">
-            <span className="text-3xl mb-2">🔍</span>
+            <IconSearch size={32} className="text-slate-300 mb-3" />
             <h4 className="text-sm font-bold text-slate-700 m-0">Ebook Tidak Ditemukan</h4>
             <p className="text-xs text-slate-400 mt-1 max-w-[200px]">
               Coba gunakan kata kunci lain atau pilih kategori yang berbeda.

@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { IconArrowLeft, IconStar, IconBook, IconEye, IconWorld } from '@tabler/icons-react';
+import { IconArrowLeft, IconStar, IconBook, IconEye, IconWorld, IconBookmark } from '@tabler/icons-react';
 import { TOP_EBOOKS } from '../../../../data/EbookDummy';
 
 export const EbookDetail = () => {
@@ -8,6 +9,37 @@ export const EbookDetail = () => {
   const navigate = useNavigate();
 
   const book = TOP_EBOOKS.find((b) => b.id === Number(id));
+
+  const [isBookmarked, setIsBookmarked] = useState(() => {
+    const saved = localStorage.getItem('saved_ebooks');
+    if (!saved) return false;
+    try {
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) && parsed.map(Number).includes(Number(id));
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleBookmark = () => {
+    const saved = localStorage.getItem('saved_ebooks');
+    let list: number[] = [];
+    try {
+      list = saved ? JSON.parse(saved) : [];
+      if (!Array.isArray(list)) list = [];
+    } catch {
+      list = [];
+    }
+    
+    if (list.includes(Number(id))) {
+      list = list.filter((bookId) => bookId !== Number(id));
+      setIsBookmarked(false);
+    } else {
+      list.push(Number(id));
+      setIsBookmarked(true);
+    }
+    localStorage.setItem('saved_ebooks', JSON.stringify(list));
+  };
 
   if (!book) {
     return (
@@ -37,7 +69,16 @@ export const EbookDetail = () => {
           <IconArrowLeft size={18} />
         </button>
         <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Detail Ebook</span>
-        <div className="w-9 h-9" /> {/* Spacer to center the title */}
+        <button 
+          onClick={toggleBookmark}
+          className={`w-9 h-9 rounded-lg border flex items-center justify-center cursor-pointer transition-colors ${
+            isBookmarked 
+              ? 'bg-sky-50 border-sky-200 text-sky-600 hover:bg-sky-100' 
+              : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <IconBookmark size={18} fill={isBookmarked ? "currentColor" : "none"} />
+        </button>
       </div>
 
       {/* Main Content Area */}
@@ -82,22 +123,22 @@ export const EbookDetail = () => {
           className="grid grid-cols-4 gap-2 bg-slate-50 border border-slate-200/60 rounded-xl p-3.5 mt-6"
         >
           <div className="flex flex-col items-center gap-1 text-center">
-            <IconStar size={16} className="text-amber-500" fill="currentColor" />
+            {/* <IconStar size={16} className="text-amber-500" fill="currentColor" /> */}
             <span className="text-[11px] font-bold text-slate-800 leading-none mt-0.5">{book.rating}</span>
             <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Rating</span>
           </div>
           <div className="flex flex-col items-center gap-1 text-center border-l border-slate-200">
-            <IconEye size={16} className="text-sky-600" />
+            {/* <IconEye size={16} className="text-sky-600" /> */}
             <span className="text-[11px] font-bold text-slate-800 leading-none mt-0.5">{book.views}</span>
             <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Dilihat</span>
           </div>
           <div className="flex flex-col items-center gap-1 text-center border-l border-slate-200">
-            <IconBook size={16} className="text-emerald-600" />
+            {/* <IconBook size={16} className="text-emerald-600" /> */}
             <span className="text-[11px] font-bold text-slate-800 leading-none mt-0.5">280 p.</span>
             <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Halaman</span>
           </div>
           <div className="flex flex-col items-center gap-1 text-center border-l border-slate-200">
-            <IconWorld size={16} className="text-indigo-600" />
+            {/* <IconWorld size={16} className="text-indigo-600" /> */}
             <span className="text-[11px] font-bold text-slate-800 leading-none mt-0.5">IDN</span>
             <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Bahasa</span>
           </div>

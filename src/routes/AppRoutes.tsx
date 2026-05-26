@@ -4,21 +4,18 @@ import { WelcomePage } from '../features/WelcomePage';
 import { EbookList } from '../features/users/pages/ebook/EbookList';
 import { EbookDetail } from '../features/users/pages/ebook/EbookDetail';
 import { EbookRead } from '../features/users/pages/ebook/EbookRead';
+import { SaveList } from '../features/users/pages/BookMark/SaveList';
+import { Login } from '../features/users/auth/Login';
+import { Register } from '../features/users/auth/Register';
+import { Profile } from '../features/users/pages/profil/Profile';
+import { Info } from '../features/users/pages/info/Info';
+import { InfoDetail } from '../features/users/pages/info/InfoDetail';
 
-// Placeholder Components for secondary pages
-const SearchPlaceholder = () => (
-  <div className="p-6 text-center text-slate-400">
-    <h2 className="text-lg font-bold text-slate-200">Pencarian</h2>
-    <p className="text-sm mt-1">Cari ribuan ebook gratis dan premium.</p>
-  </div>
-);
-
-const ProfilePlaceholder = () => (
-  <div className="p-6 text-center text-slate-400">
-    <h2 className="text-lg font-bold text-slate-200">Profil Saya</h2>
-    <p className="text-sm mt-1">Pengaturan akun dan informasi pengguna.</p>
-  </div>
-);
+// Route Guard to verify user session
+const ProfileGuard = () => {
+  const isLoggedIn = !!localStorage.getItem('logged_in_user');
+  return isLoggedIn ? <Profile /> : <Navigate to="/login" replace />;
+};
 
 export const AppRoutes = () => {
   return (
@@ -28,8 +25,12 @@ export const AppRoutes = () => {
         <Route path="/ebooks" element={<EbookList />} />
         <Route path="/ebooks/:id" element={<EbookDetail />} />
         <Route path="/ebooks/:id/read" element={<EbookRead />} />
-        <Route path="/search" element={<SearchPlaceholder />} />
-        <Route path="/profile" element={<ProfilePlaceholder />} />
+        <Route path="/bookmarks" element={<SaveList />} />
+        <Route path="/profile" element={<ProfileGuard />} />
+        <Route path="/info" element={<Info />} />
+        <Route path="/info/:id" element={<InfoDetail />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

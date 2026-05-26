@@ -1495,6 +1495,11 @@ react-dom@^19.2.6:
   dependencies:
     scheduler "^0.27.0"
 
+react-pageflip-enhanced@^2.2.3:
+  version "2.2.3"
+  resolved "https://registry.yarnpkg.com/react-pageflip-enhanced/-/react-pageflip-enhanced-2.2.3.tgz#651e63e13fbdb3636f1105a094a60e2f8908d614"
+  integrity sha512-Bkc7a/rkco2AHgMam9kjLvF5kbqx7ViMez+sMw5GKTxgepAjYJ5guO6brNn7YCWlmnzR/0Q3yei1iSlY309Mjw==
+
 react-router-dom@^7.15.1:
   version "7.15.1"
   resolved "https://registry.yarnpkg.com/react-router-dom/-/react-router-dom-7.15.1.tgz#cf5aee65a44e407a17a2e9718d5350482b1e281f"

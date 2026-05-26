@@ -14,7 +14,7 @@ export const MainLayout = () => {
         </div> */}
 
         {/* Viewport for nested pages */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden touch-pan-y scrollbar-hide pt-0 sm:pt-4">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden touch-pan-y scrollbar-hide pt-0">
           <Outlet />
         </div>
 

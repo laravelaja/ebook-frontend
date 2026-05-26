@@ -15,7 +15,7 @@ export const WelcomeHeader = ({ user }: WelcomeHeaderProps) => {
     >
       {user ? (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-sky-100 border border-sky-200 flex items-center justify-center text-sky-700 font-extrabold font-display">
+          <div className="w-10 h-10 rounded-md bg-sky-100 border border-sky-200 flex items-center justify-center text-sky-700 font-extrabold font-display">
             {user.name.charAt(0).toUpperCase()}
           </div>
           <div>
@@ -25,7 +25,7 @@ export const WelcomeHeader = ({ user }: WelcomeHeaderProps) => {
         </div>
       ) : (
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-lg bg-sky-600 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-md bg-sky-600 flex items-center justify-center">
             <IconBook size={20} className="text-white" stroke={2.5} />
           </div>
           <span className="text-lg font-black tracking-tight font-display text-slate-800">
@@ -35,7 +35,7 @@ export const WelcomeHeader = ({ user }: WelcomeHeaderProps) => {
       )}
       
       <div className="flex items-center gap-2">
-        <button className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 cursor-pointer hover:bg-slate-100 transition-colors">
+        <button className="w-9 h-9 rounded-md bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 cursor-pointer hover:bg-slate-100 transition-colors">
           <IconBell size={18} />
         </button>
       </div>

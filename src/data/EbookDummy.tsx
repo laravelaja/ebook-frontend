@@ -118,3 +118,40 @@ export const TOP_EBOOKS: Ebook[] = [
     category: 'Fiksi'
   },
 ];
+
+export interface Announcement {
+  id: number;
+  title: string;
+  excerpt: string;
+  content: string;
+  date: string;
+  image: string;
+}
+
+export const ANNOUNCEMENTS: Announcement[] = [
+  {
+    id: 1,
+    title: 'Peluncuran Fitur AuraBook Premium',
+    excerpt: 'Nikmati akses tak terbatas ke ribuan ebook pilihan terbaik dan fitur eksklusif lainnya.',
+    content: 'Kami sangat senang mengumumkan peluncuran AuraBook Premium! Mulai hari ini, Anda dapat berlangganan untuk mendapatkan akses tanpa batas ke seluruh katalog ebook kami, membaca tanpa iklan, serta mendapatkan rekomendasi yang dipersonalisasi. Terima kasih telah menjadi pembaca setia AuraBook!',
+    date: '25 Mei 2026',
+    image: 'https://images.unsplash.com/photo-1516979187457-637abb4f9353?q=80&w=600&auto=format&fit=crop'
+  },
+  {
+    id: 2,
+    title: 'Tips Menjaga Kesehatan Mata Saat Membaca',
+    excerpt: 'Simak tips praktis dari para ahli kesehatan untuk kenyamanan membaca jangka panjang.',
+    content: 'Membaca ebook sangat menyenangkan, namun kesehatan mata tetap yang utama. Pastikan Anda menerapkan aturan 20-20-20: setiap 20 menit membaca, alihkan pandangan ke objek berjarak 20 kaki selama 20 detik. Jaga juga jarak baca minimal 30 cm dan atur kecerahan layar sesuai kenyamanan Anda.',
+    date: '20 Mei 2026',
+    image: 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?q=80&w=600&auto=format&fit=crop'
+  },
+  {
+    id: 3,
+    title: 'Event Bedah Buku Bulanan AuraBook',
+    excerpt: 'Ikuti diskusi seru bersama penulis best-seller nasional secara virtual akhir pekan ini.',
+    content: 'AuraBook kembali menyelenggarakan diskusi virtual bedah buku bersama penulis best-seller bulan ini. Daftarkan diri Anda segera melalui menu info untuk mendapatkan tautan akses Zoom eksklusif. Event ini gratis dan terbuka untuk seluruh pengguna AuraBook.',
+    date: '15 Mei 2026',
+    image: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?q=80&w=600&auto=format&fit=crop'
+  }
+];
+

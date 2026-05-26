@@ -17,7 +17,7 @@ export const WelcomeBanner = () => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1, duration: 0.4 }}
-      className="relative w-full overflow-hidden rounded-lg border border-slate-200 bg-white"
+      className="relative w-full overflow-hidden rounded-md border border-slate-200 bg-white"
     >
       <div 
         className="flex transition-transform duration-500 ease-out" 
@@ -39,7 +39,7 @@ export const WelcomeBanner = () => {
           <button
             key={index}
             onClick={() => setActiveBanner(index)}
-            className={`w-2.5 h-1.5 rounded-lg transition-all border-none cursor-pointer ${
+            className={`w-2.5 h-1.5 rounded-md transition-all border-none cursor-pointer ${
               index === activeBanner ? 'bg-sky-600 w-5' : 'bg-slate-300'
             }`}
           />

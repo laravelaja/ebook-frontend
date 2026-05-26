@@ -1,10 +1,10 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { IconHome, IconBook, IconSearch, IconUser } from '@tabler/icons-react';
+import { IconHome, IconBook, IconBookmark, IconUser } from '@tabler/icons-react';
 
 const NAV_ITEMS = [
   { label: 'Home', path: '/', icon: IconHome },
   { label: 'Ebook', path: '/ebooks', icon: IconBook },
-  { label: 'Search', path: '/search', icon: IconSearch },
+  { label: 'Bookmark', path: '/bookmarks', icon: IconBookmark },
   { label: 'Profile', path: '/profile', icon: IconUser },
 ];
 
@@ -12,8 +12,12 @@ export const BottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Hide bottom nav on ebook reader page
-  if (location.pathname.endsWith('/read')) {
+  // Hide bottom nav on ebook reader page and auth pages
+  if (
+    location.pathname.endsWith('/read') || 
+    location.pathname === '/login' || 
+    location.pathname === '/register'
+  ) {
     return null;
   }
 
