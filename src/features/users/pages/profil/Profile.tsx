@@ -8,7 +8,8 @@ import {
   IconLogout, 
   IconEdit, 
   IconCheck, 
-  IconX 
+  IconX,
+  IconShieldCheck
 } from '@tabler/icons-react';
 import { LogoutModal } from '../../components/modal/Logout';
 
@@ -221,6 +222,30 @@ export const Profile = () => {
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Kelola</span>
           </button>
         </div>
+
+        {/* Admin Panel - only for admin role */}
+        {user.role === 'admin' && (
+          <div className="flex flex-col gap-2.5">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest leading-none px-1">
+              Administrasi
+            </span>
+            <button
+              onClick={() => navigate('/admin')}
+              className="w-full bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-md p-3.5 flex items-center justify-between cursor-pointer text-left transition-all active:scale-[0.99]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-md bg-sky-500 text-white flex items-center justify-center shrink-0">
+                  <IconShieldCheck size={16} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-black text-white leading-none">Admin Dashboard</span>
+                  <span className="text-[9px] text-slate-400 font-semibold mt-1">Kelola user, buku, banner, dan lainnya</span>
+                </div>
+              </div>
+              <span className="text-[10px] font-black text-sky-400 uppercase tracking-wider">Buka</span>
+            </button>
+          </div>
+        )}
 
         {/* Account Settings List */}
         <div className="flex flex-col gap-2.5">

@@ -9,18 +9,44 @@ export const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  // Auto-initialize users database with a default user on mount
+  // Auto-initialize users database with default users on mount
   useEffect(() => {
     const db = localStorage.getItem('users_db');
     if (!db) {
-      const defaultUser = {
-        name: 'Mas Koko Ganteng',
-        email: 'user@example.com',
-        password: 'password123',
-        bio: 'Pecinta buku & pembaca setia.',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80'
-      };
-      localStorage.setItem('users_db', JSON.stringify([defaultUser]));
+      const defaultUsers = [
+        {
+          name: 'Mas Koko Ganteng',
+          email: 'user@example.com',
+          password: 'password123',
+          role: 'user',
+          bio: 'Pecinta buku & pembaca setia.',
+          avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80'
+        },
+        {
+          name: 'Admin AuraBook',
+          email: 'admin@aurabook.com',
+          password: 'admin123',
+          role: 'admin',
+          bio: 'Administrator platform AuraBook.',
+          avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80'
+        },
+      ];
+      localStorage.setItem('users_db', JSON.stringify(defaultUsers));
+    } else {
+      // Ensure admin account exists in existing db
+      const users = JSON.parse(db);
+      const hasAdmin = users.some((u: any) => u.role === 'admin');
+      if (!hasAdmin) {
+        users.push({
+          name: 'Admin AuraBook',
+          email: 'admin@aurabook.com',
+          password: 'admin123',
+          role: 'admin',
+          bio: 'Administrator platform AuraBook.',
+          avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80'
+        });
+        localStorage.setItem('users_db', JSON.stringify(users));
+      }
     }
   }, []);
 
@@ -44,10 +70,17 @@ export const Login = () => {
         name: user.name,
         email: user.email,
         bio: user.bio,
-        avatar: user.avatar
+        avatar: user.avatar,
+        role: user.role || 'user',
       };
       localStorage.setItem('logged_in_user', JSON.stringify(sessionUser));
-      navigate('/profile');
+      
+      // Redirect based on role
+      if (user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/profile');
+      }
     } else {
       setError('Email atau password salah');
     }
@@ -132,9 +165,12 @@ export const Login = () => {
           </form>
 
           {/* Quick Login Assist Info */}
-          <div className="mt-5 pt-4 border-t border-slate-100 text-center">
+          <div className="mt-5 pt-4 border-t border-slate-100 text-center flex flex-col gap-1">
             <span className="text-[9px] font-extrabold uppercase text-slate-400 tracking-wider">
-              Uji Coba Cepat: user@example.com / password123
+              User: user@example.com / password123
+            </span>
+            <span className="text-[9px] font-extrabold uppercase text-sky-500 tracking-wider">
+              Admin: admin@aurabook.com / admin123
             </span>
           </div>
         </div>
