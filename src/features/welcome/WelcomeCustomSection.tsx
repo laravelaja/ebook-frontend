@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { IconCalendar, IconChevronRight } from '@tabler/icons-react';
-import { TOP_EBOOKS, ANNOUNCEMENTS } from '../../data/EbookDummy';
+import { ANNOUNCEMENTS } from '../../data/EbookDummy';
+import { getEbookById } from '../../utils/ebookStore';
 
 export const WelcomeCustomSection = () => {
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ export const WelcomeCustomSection = () => {
         const bookId = parseInt(latestEntry[0]);
         const progress = latestEntry[1] as any;
 
-        const ebookDetail = TOP_EBOOKS.find((book) => book.id === bookId);
+        const ebookDetail = getEbookById(bookId);
         if (ebookDetail) {
           setLastReadBook({
             ...ebookDetail,

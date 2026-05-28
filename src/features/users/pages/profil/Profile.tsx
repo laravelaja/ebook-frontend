@@ -1,8 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { 
-  IconUser, 
   IconMail, 
   IconBook, 
   IconClock, 
@@ -13,12 +11,6 @@ import {
   IconX 
 } from '@tabler/icons-react';
 import { LogoutModal } from '../../components/modal/Logout';
-
-interface ReadingProgress {
-  page: number;
-  totalPages: number;
-  updatedAt: string;
-}
 
 export const Profile = () => {
   const navigate = useNavigate();
@@ -206,6 +198,28 @@ export const Profile = () => {
               <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-1.5">Hal. Dibaca</span>
             </div>
           </div>
+        </div>
+
+        {/* Creator Studio Menu */}
+        <div className="flex flex-col gap-2.5">
+          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest leading-none px-1">
+            Kreativitas
+          </span>
+          <button
+            onClick={() => navigate('/creator')}
+            className="w-full bg-white hover:bg-slate-50 border border-slate-200/80 rounded-md p-3.5 flex items-center justify-between cursor-pointer text-left transition-all active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-md bg-slate-50 text-slate-600 flex items-center justify-center border border-slate-200/50 shrink-0">
+                <IconEdit size={16} />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-black text-slate-800 leading-none">Studio Penulis</span>
+                <span className="text-[9px] text-slate-400 font-semibold mt-1">Tulis dan terbitkan ebook karyamu sendiri</span>
+              </div>
+            </div>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Kelola</span>
+          </button>
         </div>
 
         {/* Account Settings List */}

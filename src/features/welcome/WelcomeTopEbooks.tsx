@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { TOP_EBOOKS } from '../../data/EbookDummy';
+import { getAllEbooks } from '../../utils/ebookStore';
 
 export const WelcomeTopEbooks = () => {
   const navigate = useNavigate();
+  const ebooks = getAllEbooks().slice(0, 6);
 
   return (
     <motion.div
@@ -23,7 +24,7 @@ export const WelcomeTopEbooks = () => {
       </div>
       
       <div className="grid grid-cols-3 gap-4">
-        {TOP_EBOOKS.slice(0, 6).map((book) => (
+        {ebooks.map((book) => (
           <div 
             key={book.id} 
             onClick={() => navigate(`/ebooks/${book.id}`)}

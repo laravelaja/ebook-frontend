@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { TOP_EBOOKS, CATEGORIES } from '../../../../data/EbookDummy';
+import { CATEGORIES } from '../../../../data/EbookDummy';
+import { getAllEbooks } from '../../../../utils/ebookStore';
 import { SearchInput } from '../../components/SearchInput';
 import { Chategory } from '../../components/Chategory';
 import { IconSearch } from '@tabler/icons-react';
+import { useMemo } from 'react';
 
 export const EbookList = () => {
   const navigate = useNavigate();
@@ -23,8 +25,10 @@ export const EbookList = () => {
     }
   }, [location.state]);
 
+  const ebooks = useMemo(() => getAllEbooks(), []);
+
   // Filter logic
-  const filteredEbooks = TOP_EBOOKS.filter((book) => {
+  const filteredEbooks = ebooks.filter((book) => {
     const matchesSearch =
       book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       book.author.toLowerCase().includes(searchQuery.toLowerCase());

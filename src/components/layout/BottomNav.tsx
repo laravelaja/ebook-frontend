@@ -12,11 +12,12 @@ export const BottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Hide bottom nav on ebook reader page and auth pages
+  // Hide bottom nav on ebook reader page, auth pages, and chapter editor
   if (
     location.pathname.endsWith('/read') || 
     location.pathname === '/login' || 
-    location.pathname === '/register'
+    location.pathname === '/register' ||
+    location.pathname.includes('/creator/write')
   ) {
     return null;
   }

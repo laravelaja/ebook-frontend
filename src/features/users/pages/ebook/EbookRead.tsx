@@ -1,17 +1,17 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import HTMLFlipBook from 'react-pageflip-enhanced';
-import { IconArrowLeft, IconChevronLeft, IconChevronRight, IconTextSize, IconMoon, IconSun } from '@tabler/icons-react';
-import { TOP_EBOOKS } from '../../../../data/EbookDummy';
+import { IconArrowLeft, IconChevronLeft, IconChevronRight, IconVolume, IconVolumeOff } from '@tabler/icons-react';
+import { getEbookById } from '../../../../utils/ebookStore';
+import { playPageFlipSound } from '../../../../utils/pageFlipSound';
 
 export const EbookRead = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const book = TOP_EBOOKS.find((b) => b.id === Number(id));
+  const book = getEbookById(Number(id));
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [fontSize, setFontSize] = useState<'sm' | 'base' | 'lg'>('base');
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   const bookRef = useRef<any>(null);
 
@@ -22,10 +22,16 @@ export const EbookRead = () => {
       const historyKey = 'reading_history';
       const history = localStorage.getItem(historyKey);
       const historyList = history ? JSON.parse(history) : {};
+      
+      const pagesContent = book.pages && book.pages.length > 0
+        ? book.pages
+        : (bookContentsMap[book.id] || defaultExcerpts);
+      const totalPagesCount = pagesContent.length;
+
       if (!historyList[book.id]) {
         historyList[book.id] = {
           page: 1,
-          totalPages: book.id === 1 ? 3 : 3, // Atomic Habits has 3 pages in contents map
+          totalPages: totalPagesCount,
           updatedAt: new Date().toISOString()
         };
         localStorage.setItem(historyKey, JSON.stringify(historyList));
@@ -124,9 +130,22 @@ export const EbookRead = () => {
     }
   ];
 
-  const pagesContent = bookContentsMap[book.id] || defaultExcerpts;
+  const pagesContent = book.pages && book.pages.length > 0
+    ? book.pages
+    : (bookContentsMap[book.id] || defaultExcerpts);
   const totalPages = pagesContent.length;
-  const currentContent = pagesContent[currentPage - 1];
+
+  // Read display settings - per page
+  // Page number logic: if a page has showPageNumber=true, that page and all subsequent pages show numbers
+  // Find the first page index where showPageNumber is enabled
+  const pageNumberStartIndex = useMemo(() => {
+    for (let i = 0; i < pagesContent.length; i++) {
+      if (pagesContent[i].showPageNumber) return i;
+    }
+    // Fallback: check legacy book-level settings
+    if (book.settings?.showPageNumber) return 0;
+    return -1; // no page numbers
+  }, [pagesContent, book.settings]);
 
   const handleNext = () => {
     if (bookRef.current) {
@@ -134,14 +153,11 @@ export const EbookRead = () => {
         const flip = bookRef.current.pageFlip();
         if (flip) {
           flip.flipNext();
-        } else {
-          console.warn("pageFlip() returned null or undefined");
+          if (soundEnabled) playPageFlipSound();
         }
       } catch (err) {
         console.error("Error in handleNext:", err);
       }
-    } else {
-      console.warn("bookRef.current is null when trying to call flipNext");
     }
   };
 
@@ -151,22 +167,21 @@ export const EbookRead = () => {
         const flip = bookRef.current.pageFlip();
         if (flip) {
           flip.flipPrev();
-        } else {
-          console.warn("pageFlip() returned null or undefined");
+          if (soundEnabled) playPageFlipSound();
         }
       } catch (err) {
         console.error("Error in handlePrev:", err);
       }
-    } else {
-      console.warn("bookRef.current is null when trying to call flipPrev");
     }
   };
 
   const onFlip = (e: any) => {
-    console.log("Flip event triggered. e:", e);
     if (e && typeof e.data === 'number') {
       const pageNum = e.data + 1;
       setCurrentPage(pageNum);
+
+      // Play page flip sound on manual swipe
+      if (soundEnabled) playPageFlipSound();
 
       try {
         const historyKey = 'reading_history';
@@ -184,104 +199,87 @@ export const EbookRead = () => {
     }
   };
 
-  const getFontSizeClass = () => {
-    const textColor = isDarkMode ? 'text-[#d6c7b7]' : 'text-[#2b1f1d]';
-    if (fontSize === 'sm') return `text-[13px] leading-[1.7] ${textColor}`;
-    if (fontSize === 'lg') return `text-[17px] leading-[1.8] ${textColor}`;
-    return `text-[15px] leading-[1.75] ${textColor}`; // base
-  };
-
-  const fontSizeClass = getFontSizeClass();
+  const fontSizeClass = 'text-[15px] leading-[1.75] text-[#2b1f1d]';
 
   const renderedPages = useMemo(() => {
     return pagesContent.map((content, index) => (
       <div
         key={index}
-        className={`relative w-full h-full flex flex-col justify-between px-8 py-9 rounded-md border shadow-sm select-none overflow-hidden ${
-          isDarkMode
-            ? 'bg-[#221a18] border-[#291f1c] text-[#d6c7b7]'
-            : 'bg-[#fffdf9] border-[#ebdcb9] text-[#3c2f2f]'
-        }`}
+        className="relative w-full h-full flex flex-col px-8 py-9 rounded-md border shadow-sm select-none overflow-hidden bg-[#fffdf9] border-[#ebdcb9] text-[#3c2f2f]"
       >
-        {/* Spine Gutter Shadow overlay (Left-bound book feel) */}
+        {/* Spine Gutter Shadow */}
         <div className="absolute inset-y-0 left-0 w-8 pointer-events-none rounded-l-md bg-gradient-to-r from-black/12 via-black/3 to-transparent z-20" />
-        
-        {/* Spine Crease Line */}
-        <div className={`absolute inset-y-0 left-0 w-[1px] pointer-events-none z-20 ${
-          isDarkMode ? 'bg-white/5' : 'bg-black/5'
-        }`} />
-
-        {/* Outer Page Edge Highlight (Right side) */}
+        <div className="absolute inset-y-0 left-0 w-[1px] pointer-events-none z-20 bg-black/5" />
         <div className="absolute inset-y-0 right-0 w-[2px] pointer-events-none rounded-r-md bg-gradient-to-l from-white/5 to-transparent z-20" />
 
         <div className="flex-1 flex flex-col z-10 h-full">
-          {/* Book Inner Header (Decorative Chapter Title) */}
-          <div className={`flex flex-col items-center pb-3 mb-5 border-b text-center ${
-            isDarkMode ? 'border-white/5' : 'border-black/5'
-          }`}>
-            <span className={`font-sans text-[10px] font-bold uppercase tracking-widest leading-none ${
-              isDarkMode ? 'text-sky-400' : 'text-sky-700'
-            }`}>
+          {/* Chapter Title - per page */}
+          {(content.showChapterTitle || (!book.isUserCreated && content.showChapterTitle !== false)) && (
+          <div className="flex flex-col items-center pb-3 mb-5 border-b border-black/5 text-center shrink-0">
+            <span className="font-sans text-[10px] font-bold uppercase tracking-widest leading-none text-sky-700">
               {content.chapter}
             </span>
           </div>
+          )}
 
-          {/* Book Text Area with Novel Drop Cap and Serif Font */}
-          <div className={`flex-1 flex flex-col gap-4 font-serif ${fontSizeClass}`}>
-            {content.paragraphs.map((p, idx) => {
-              const isFirstParagraph = idx === 0;
-              return (
-                <p
-                  key={idx}
-                  className={`${
-                    isFirstParagraph
-                      ? `text-left indent-0 first-letter:text-5xl first-letter:font-bold first-letter:float-left first-letter:mr-2.5 first-letter:leading-[0.85] first-letter:font-sans ${
-                          isDarkMode ? 'first-letter:text-sky-400' : 'first-letter:text-sky-700'
-                        }`
-                      : 'text-justify indent-6'
-                  }`}
-                >
-                  {p}
-                </p>
-              );
-            })}
-            
-            {/* Decorative centered separator glyph inside book page */}
-            <div className="text-center py-4 text-xs opacity-35 select-none font-sans">
-              ❦
+          {content.content ? (
+            <>
+              {(content.verticalAlign === 'center' || content.verticalAlign === 'bottom') && (
+                <div className="flex-1" />
+              )}
+              <div className="shrink-0">
+                <div 
+                  className="preview-content"
+                  dangerouslySetInnerHTML={{ __html: content.content }}
+                />
+              </div>
+              {content.verticalAlign === 'center' && (
+                <div className="flex-1" />
+              )}
+            </>
+          ) : (
+            <div className={`flex-1 flex flex-col gap-4 font-serif ${fontSizeClass}`}>
+              {content.paragraphs.map((p, idx) => {
+                const isFirstParagraph = idx === 0;
+                return (
+                  <p
+                    key={idx}
+                    className={`${
+                      isFirstParagraph
+                        ? 'text-left indent-0 first-letter:text-5xl first-letter:font-bold first-letter:float-left first-letter:mr-2.5 first-letter:leading-[0.85] first-letter:font-sans first-letter:text-sky-700'
+                        : 'text-justify indent-6'
+                    }`}
+                  >
+                    {p}
+                  </p>
+                );
+              })}
+              <div className="text-center py-4 text-xs opacity-35 select-none font-sans">❦</div>
             </div>
-          </div>
+          )}
 
-          {/* Page Number inside the book page */}
-          <div className={`text-center pt-3 mt-4 border-t font-serif text-[10px] italic opacity-60 ${
-            isDarkMode ? 'border-white/5' : 'border-black/5'
-          }`}>
-            — Halaman {index + 1} —
+          {/* Page Number */}
+          {pageNumberStartIndex >= 0 && index >= pageNumberStartIndex && (
+          <div className="text-center pt-3 mt-auto border-t border-black/5 shrink-0">
+            <span className="text-[9px] tracking-wider font-medium text-[#a09080]" style={{ fontFamily: 'Georgia, serif' }}>
+              — halaman {index - pageNumberStartIndex + 1} —
+            </span>
           </div>
+          )}
         </div>
       </div>
     ));
-  }, [pagesContent, isDarkMode, fontSizeClass]);
+  }, [pagesContent, fontSizeClass, pageNumberStartIndex, book.isUserCreated]);
 
   return (
-    <div className={`min-h-full w-full flex flex-col transition-colors duration-300 ${
-      isDarkMode 
-        ? 'bg-gradient-to-br from-[#1c1614] via-[#120d0c] to-[#0a0706]' 
-        : 'bg-gradient-to-br from-[#f8f3e8] via-[#eedfb8] to-[#e4d3a2]'
-    }`}>
-      {/* Header - Perfectly Centered Title */}
-      <div className={`relative flex items-center justify-between px-5 pt-5 pb-3 sticky top-0 z-20 shrink-0 border-b transition-colors ${
-        isDarkMode ? 'bg-[#1a1412] border-[#291f1c]' : 'bg-[#faf6eb] border-[#ebdcb9]'
-      }`}>
+    <div className="min-h-full w-full flex flex-col bg-gradient-to-br from-[#f8f3e8] via-[#eedfb8] to-[#e4d3a2]">
+      {/* Header */}
+      <div className="relative flex items-center justify-between px-5 pt-5 pb-3 sticky top-0 z-20 shrink-0 border-b bg-[#faf6eb] border-[#ebdcb9]">
         {/* Left Side */}
         <div className="z-10">
           <button 
-            onClick={() => navigate(`/ebooks/${book.id}`)}
-            className={`w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer border transition-colors ${
-              isDarkMode 
-                ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' 
-                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
-            }`}
+            onClick={() => navigate(-1)}
+            className="w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer border transition-colors bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
           >
             <IconArrowLeft size={18} />
           </button>
@@ -289,9 +287,7 @@ export const EbookRead = () => {
 
         {/* Absolute Centered Title Wrapper */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-16 mt-2">
-          <h4 className={`text-[10px] font-black truncate m-0 leading-tight uppercase tracking-wider max-w-[180px] ${
-            isDarkMode ? 'text-sky-400' : 'text-sky-700'
-          }`}>
+          <h4 className="text-[10px] font-black truncate m-0 leading-tight uppercase tracking-wider max-w-[180px] text-sky-700">
             {book.title}
           </h4>
           <span className="text-[9px] text-slate-400 font-semibold leading-none truncate block mt-0.5 max-w-[180px]">
@@ -299,29 +295,14 @@ export const EbookRead = () => {
           </span>
         </div>
 
-        {/* Right Side Controls */}
+        {/* Right Side Controls - Sound Toggle */}
         <div className="flex items-center gap-1.5 z-10">
           <button 
-            onClick={() => setFontSize((f) => (f === 'sm' ? 'base' : f === 'base' ? 'lg' : 'sm'))}
-            className={`w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer border transition-colors ${
-              isDarkMode 
-                ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' 
-                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
-            }`}
-            title="Ubah Ukuran Teks"
+            onClick={() => setSoundEnabled((s) => !s)}
+            className="w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer border transition-colors bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
+            title={soundEnabled ? 'Matikan Suara' : 'Nyalakan Suara'}
           >
-            <IconTextSize size={18} />
-          </button>
-          <button 
-            onClick={() => setIsDarkMode((d) => !d)}
-            className={`w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer border transition-colors ${
-              isDarkMode 
-                ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' 
-                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
-            }`}
-            title={isDarkMode ? 'Mode Terang' : 'Mode Gelap'}
-          >
-            {isDarkMode ? <IconSun size={18} className="text-amber-400" /> : <IconMoon size={18} />}
+            {soundEnabled ? <IconVolume size={18} /> : <IconVolumeOff size={18} />}
           </button>
         </div>
       </div>
@@ -330,21 +311,10 @@ export const EbookRead = () => {
       <div className="flex-1 overflow-visible px-5 py-6 flex flex-col justify-center select-none">
         <div className="relative w-full max-w-sm mx-auto aspect-[7/10] flex flex-col">
           
-          {/* Stacked Pages (Page stack depth effect on the right/bottom) */}
-          {/* Stacked Page 3 (Deepest) */}
-          <div className={`absolute inset-y-1.5 -right-2.5 w-full h-full rounded-md border opacity-40 z-0 ${
-            isDarkMode ? 'bg-[#181211] border-[#291f1c]' : 'bg-[#ebdcb9] border-[#d8c599]'
-          }`} style={{ transform: 'translateY(5px)' }} />
-
-          {/* Stacked Page 2 (Middle) */}
-          <div className={`absolute inset-y-1 -right-1.5 w-full h-full rounded-md border opacity-75 z-0 ${
-            isDarkMode ? 'bg-[#1a1412] border-[#291f1c]' : 'bg-[#f5ebd0] border-[#e0cfa5]'
-          }`} style={{ transform: 'translateY(3px)' }} />
-
-          {/* Stacked Page 1 (Top underneath) */}
-          <div className={`absolute inset-y-0.5 -right-0.5 w-full h-full rounded-md border opacity-90 z-0 ${
-            isDarkMode ? 'bg-[#1f1816] border-[#291f1c]' : 'bg-[#fcf8f0] border-[#ebdcb9]'
-          }`} style={{ transform: 'translateY(1.5px)' }} />
+          {/* Stacked Pages */}
+          <div className="absolute inset-y-1.5 -right-2.5 w-full h-full rounded-md border opacity-40 z-0 bg-[#ebdcb9] border-[#d8c599]" style={{ transform: 'translateY(5px)' }} />
+          <div className="absolute inset-y-1 -right-1.5 w-full h-full rounded-md border opacity-75 z-0 bg-[#f5ebd0] border-[#e0cfa5]" style={{ transform: 'translateY(3px)' }} />
+          <div className="absolute inset-y-0.5 -right-0.5 w-full h-full rounded-md border opacity-90 z-0 bg-[#fcf8f0] border-[#ebdcb9]" style={{ transform: 'translateY(1.5px)' }} />
 
           {/* FlipBook Container */}
           <div className="relative flex-1 w-full h-full z-10">
@@ -378,13 +348,9 @@ export const EbookRead = () => {
       </div>
 
       {/* Bottom Nav Control Bar */}
-      <div className={`relative z-30 px-5 py-4 border-t flex flex-col gap-3 shrink-0 transition-colors ${
-        isDarkMode ? 'bg-[#1a1412] border-[#291f1c]' : 'bg-[#faf6eb] border-[#ebdcb9]'
-      }`}>
+      <div className="relative z-30 px-5 py-4 border-t flex flex-col gap-3 shrink-0 bg-[#faf6eb] border-[#ebdcb9]">
         {/* Progress Bar */}
-        <div className={`w-full h-1 rounded-full overflow-hidden ${
-          isDarkMode ? 'bg-[#291f1c]' : 'bg-[#ebdcb9]'
-        }`}>
+        <div className="w-full h-1 rounded-full overflow-hidden bg-[#ebdcb9]">
           <div 
             className="h-full bg-sky-600 transition-all duration-300"
             style={{ width: `${(currentPage / totalPages) * 100}%` }}
@@ -399,9 +365,7 @@ export const EbookRead = () => {
             className={`flex items-center gap-1 text-[11px] font-bold py-1.5 px-3 rounded-lg border cursor-pointer select-none transition-all ${
               currentPage === 1 
                 ? 'opacity-40 pointer-events-none' 
-                : isDarkMode 
-                  ? 'bg-[#221a18] border-[#291f1c] text-[#d6c7b7] hover:bg-[#291f1c]' 
-                  : 'bg-white border-[#ebdcb9] text-[#3c2f2f] hover:bg-[#fffdf9]'
+                : 'bg-white border-[#ebdcb9] text-[#3c2f2f] hover:bg-[#fffdf9]'
             }`}
           >
             <IconChevronLeft size={16} />
@@ -418,9 +382,7 @@ export const EbookRead = () => {
             className={`flex items-center gap-1 text-[11px] font-bold py-1.5 px-3 rounded-lg border cursor-pointer select-none transition-all ${
               currentPage === totalPages 
                 ? 'opacity-40 pointer-events-none' 
-                : isDarkMode 
-                  ? 'bg-[#221a18] border-[#291f1c] text-[#d6c7b7] hover:bg-[#291f1c]' 
-                  : 'bg-white border-[#ebdcb9] text-[#3c2f2f] hover:bg-[#fffdf9]'
+                : 'bg-white border-[#ebdcb9] text-[#3c2f2f] hover:bg-[#fffdf9]'
             }`}
           >
             <span>Selanjutnya</span>

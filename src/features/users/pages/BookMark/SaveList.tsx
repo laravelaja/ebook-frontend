@@ -4,10 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   IconBookmark, 
   IconStar, 
-  IconChevronRight, 
   IconTrash
 } from '@tabler/icons-react';
-import { TOP_EBOOKS } from '../../../../data/EbookDummy';
+import type { Ebook } from '../../../../data/EbookDummy';
+import { getAllEbooks, getEbookById } from '../../../../utils/ebookStore';
 import { SearchInput } from '../../components/SearchInput';
 import { Chategory } from '../../components/Chategory';
 import { BookmarkTabs } from '../../components/BookmarkTabs';
@@ -85,7 +85,7 @@ export const SaveList = () => {
   // Filter bookmarked books
   const savedBooks = useMemo(() => {
     const ids = Array.isArray(savedBookIds) ? savedBookIds : [];
-    return TOP_EBOOKS.filter((book) => ids.includes(book.id));
+    return getAllEbooks().filter((book) => ids.includes(book.id));
   }, [savedBookIds]);
 
   // Categories in bookmarked books
@@ -123,13 +123,13 @@ export const SaveList = () => {
       : {};
     return Object.entries(historyObj)
       .map(([idStr, progress]) => {
-        const book = TOP_EBOOKS.find((b) => b.id === Number(idStr));
+        const book = getEbookById(Number(idStr));
         return {
           book,
           progress: progress as ReadingProgress
         };
       })
-      .filter((item): item is { book: typeof TOP_EBOOKS[0]; progress: ReadingProgress } => !!item.book && !!item.progress)
+      .filter((item): item is { book: Ebook; progress: ReadingProgress } => !!item.book && !!item.progress)
       .sort((a, b) => new Date(b.progress.updatedAt).getTime() - new Date(a.progress.updatedAt).getTime());
   }, [readingHistory]);
 

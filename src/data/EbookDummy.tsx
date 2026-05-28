@@ -25,6 +25,20 @@ export const CATEGORIES = [
   'Sastra'
 ];
 
+export interface EbookPage {
+  chapter: string;
+  paragraphs: string[];
+  content?: string; // HTML content from rich text editor
+  verticalAlign?: 'top' | 'center' | 'bottom'; // vertical position of content
+  showChapterTitle?: boolean; // per-page: show chapter title
+  showPageNumber?: boolean; // per-page: show page number (applies from this page onward)
+}
+
+export interface EbookSettings {
+  showChapterTitle?: boolean; // legacy, kept for backward compat
+  showPageNumber?: boolean; // legacy, kept for backward compat
+}
+
 export interface Ebook {
   id: number;
   title: string;
@@ -33,6 +47,10 @@ export interface Ebook {
   rating: number;
   views: string;
   category: string;
+  pages?: EbookPage[];
+  synopsis?: string;
+  isUserCreated?: boolean;
+  settings?: EbookSettings;
 }
 
 export const TOP_EBOOKS: Ebook[] = [

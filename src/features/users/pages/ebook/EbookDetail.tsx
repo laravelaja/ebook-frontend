@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { IconArrowLeft, IconStar, IconBook, IconEye, IconWorld, IconBookmark } from '@tabler/icons-react';
-import { TOP_EBOOKS } from '../../../../data/EbookDummy';
+import { IconArrowLeft, IconBookmark } from '@tabler/icons-react';
+import { getEbookById } from '../../../../utils/ebookStore';
 
 export const EbookDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const book = TOP_EBOOKS.find((b) => b.id === Number(id));
+  const book = getEbookById(Number(id));
 
   const [isBookmarked, setIsBookmarked] = useState(() => {
     const saved = localStorage.getItem('saved_ebooks');
