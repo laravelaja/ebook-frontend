@@ -46,7 +46,7 @@ export const BottomNav = () => {
   };
 
   return (
-    <div className="w-full h-20 min-h-20 bg-white border-t border-slate-200 flex items-center justify-around shrink-0 pb-5 pt-2 px-2 z-100">
+    <div className="w-full bg-white border-t border-slate-200 flex items-center justify-around shrink-0 pb-2 pt-2 px-2 z-100">
       {NAV_ITEMS.map((item) => {
         const isActive = item.path === '/' 
           ? location.pathname === '/' 
