@@ -114,14 +114,6 @@ export const Login = () => {
           </form>
 
           {/* Quick Login Assist Info */}
-          <div className="mt-5 pt-4 border-t border-slate-100 text-center flex flex-col gap-1">
-            <span className="text-[9px] font-extrabold uppercase text-slate-400 tracking-wider">
-              User: user@example.com / password123
-            </span>
-            <span className="text-[9px] font-extrabold uppercase text-sky-500 tracking-wider">
-              Admin: admin@aurabook.com / admin123
-            </span>
-          </div>
         </div>
 
         {/* Redirect Option */}
