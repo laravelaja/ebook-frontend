@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { IconMail, IconLock, IconArrowLeft } from '@tabler/icons-react';
+import { authApi } from '../../../api/auth';
 
 export const Login = () => {
   const navigate = useNavigate();
@@ -9,48 +10,7 @@ export const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  // Auto-initialize users database with default users on mount
-  useEffect(() => {
-    const db = localStorage.getItem('users_db');
-    if (!db) {
-      const defaultUsers = [
-        {
-          name: 'Mas Koko Ganteng',
-          email: 'user@example.com',
-          password: 'password123',
-          role: 'user',
-          bio: 'Pecinta buku & pembaca setia.',
-          avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80'
-        },
-        {
-          name: 'Admin AuraBook',
-          email: 'admin@aurabook.com',
-          password: 'admin123',
-          role: 'admin',
-          bio: 'Administrator platform AuraBook.',
-          avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80'
-        },
-      ];
-      localStorage.setItem('users_db', JSON.stringify(defaultUsers));
-    } else {
-      // Ensure admin account exists in existing db
-      const users = JSON.parse(db);
-      const hasAdmin = users.some((u: any) => u.role === 'admin');
-      if (!hasAdmin) {
-        users.push({
-          name: 'Admin AuraBook',
-          email: 'admin@aurabook.com',
-          password: 'admin123',
-          role: 'admin',
-          bio: 'Administrator platform AuraBook.',
-          avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80'
-        });
-        localStorage.setItem('users_db', JSON.stringify(users));
-      }
-    }
-  }, []);
-
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -59,30 +19,19 @@ export const Login = () => {
       return;
     }
 
-    const dbStr = localStorage.getItem('users_db');
-    const users = dbStr ? JSON.parse(dbStr) : [];
-    
-    const user = users.find((u: any) => u.email === email && u.password === password);
+    try {
+      const response = await authApi.login(email, password);
+      localStorage.setItem('access_token', response.access_token);
+      localStorage.setItem('logged_in_user', JSON.stringify(response.user));
 
-    if (user) {
-      // Save logged in user (excluding password)
-      const sessionUser = {
-        name: user.name,
-        email: user.email,
-        bio: user.bio,
-        avatar: user.avatar,
-        role: user.role || 'user',
-      };
-      localStorage.setItem('logged_in_user', JSON.stringify(sessionUser));
-      
       // Redirect based on role
-      if (user.role === 'admin') {
+      if (response.user.role === 'admin') {
         navigate('/admin');
       } else {
         navigate('/profile');
       }
-    } else {
-      setError('Email atau password salah');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Email atau password salah');
     }
   };
 

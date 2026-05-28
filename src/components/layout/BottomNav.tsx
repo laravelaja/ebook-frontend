@@ -1,5 +1,9 @@
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { IconHome, IconBook, IconBookmark, IconUser } from '@tabler/icons-react';
+import { ebooksApi } from '../../api/ebooks';
+import { bannersApi } from '../../api/banners';
+import { announcementsApi } from '../../api/announcements';
 
 const NAV_ITEMS = [
   { label: 'Home', path: '/', icon: IconHome },
@@ -11,6 +15,7 @@ const NAV_ITEMS = [
 export const BottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
 
   // Hide bottom nav on ebook reader page, auth pages, and chapter editor
   if (
@@ -21,6 +26,24 @@ export const BottomNav = () => {
   ) {
     return null;
   }
+
+  const prefetchForPath = (path: string) => {
+    switch (path) {
+      case '/':
+        queryClient.prefetchQuery({ queryKey: ['banners'], queryFn: () => bannersApi.getAll() });
+        queryClient.prefetchQuery({ queryKey: ['ebooks', 'all'], queryFn: () => ebooksApi.getAll() });
+        queryClient.prefetchQuery({ queryKey: ['announcements'], queryFn: () => announcementsApi.getAll() });
+        break;
+      case '/ebooks':
+        queryClient.prefetchQuery({ queryKey: ['ebooks', 'all'], queryFn: () => ebooksApi.getAll() });
+        break;
+      case '/bookmarks':
+        queryClient.prefetchQuery({ queryKey: ['ebooks', 'all'], queryFn: () => ebooksApi.getAll() });
+        break;
+      default:
+        break;
+    }
+  };
 
   return (
     <div className="w-full h-20 min-h-20 bg-white border-t border-slate-200 flex items-center justify-around shrink-0 pb-5 pt-2 px-2 z-100">
@@ -38,6 +61,8 @@ export const BottomNav = () => {
               isActive ? 'text-sky-600' : 'text-slate-400 hover:text-slate-600'
             }`}
             onClick={() => navigate(item.path)}
+            onMouseEnter={() => prefetchForPath(item.path)}
+            onTouchStart={() => prefetchForPath(item.path)}
           >
             {/* Indikator aktif - solid line di atas tanpa shadow */}
             {isActive && (

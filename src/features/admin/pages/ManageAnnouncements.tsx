@@ -1,21 +1,32 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { IconPlus, IconTrash, IconEdit, IconSpeakerphone, IconX, IconUpload } from '@tabler/icons-react';
-import { getAllAnnouncements, saveAnnouncement, deleteAnnouncement } from '../../../utils/announcementStore';
-import type { Announcement } from '../../../utils/announcementStore';
+import { announcementsApi } from '../../../api/announcements';
+import { uploadApi } from '../../../api/upload';
+import { useAnnouncements } from '../../../hooks/useApiData';
+
+interface Announcement {
+  id: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  date: string;
+  image_url: string;
+}
 
 export const ManageAnnouncements = () => {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null);
-  const [form, setForm] = useState<Omit<Announcement, 'id'>>({
+  const [form, setForm] = useState({
     title: '', excerpt: '', content: '', date: '', image: ''
   });
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    setAnnouncements(getAllAnnouncements());
-  }, []);
+  const { data: announcements = [] } = useAnnouncements();
 
   const openAdd = () => {
     setEditId(null);
@@ -23,6 +34,7 @@ export const ManageAnnouncements = () => {
       day: 'numeric', month: 'long', year: 'numeric'
     });
     setForm({ title: '', excerpt: '', content: '', date: today, image: '' });
+    setSelectedFile(null);
     setShowModal(true);
   };
 
@@ -33,14 +45,16 @@ export const ManageAnnouncements = () => {
       excerpt: item.excerpt,
       content: item.content,
       date: item.date,
-      image: item.image,
+      image: item.image_url || '',
     });
+    setSelectedFile(null);
     setShowModal(true);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setSelectedFile(file);
     const reader = new FileReader();
     reader.onloadend = () => {
       setForm({ ...form, image: reader.result as string });
@@ -48,29 +62,55 @@ export const ManageAnnouncements = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.title.trim() || !form.excerpt.trim()) {
       alert('Judul dan ringkasan wajib diisi!');
       return;
     }
-    if (editId !== null) {
-      saveAnnouncement({ id: editId, ...form });
-    } else {
-      saveAnnouncement(form);
+    try {
+      setUploading(true);
+      let imageUrl = form.image;
+
+      // Upload new file if selected
+      if (selectedFile) {
+        imageUrl = await uploadApi.uploadImage(selectedFile);
+      }
+
+      const body = {
+        title: form.title,
+        excerpt: form.excerpt,
+        content: form.content,
+        date: form.date,
+        image_url: imageUrl,
+      };
+
+      if (editId !== null) {
+        await announcementsApi.update(editId, body);
+      } else {
+        await announcementsApi.create(body);
+      }
+      setShowModal(false);
+      queryClient.invalidateQueries({ queryKey: ['announcements'] });
+    } catch (err) {
+      alert('Gagal menyimpan pengumuman');
+    } finally {
+      setUploading(false);
     }
-    setAnnouncements(getAllAnnouncements());
-    setShowModal(false);
   };
 
   const confirmDelete = (item: Announcement) => {
     setDeleteTarget(item);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteTarget) return;
-    deleteAnnouncement(deleteTarget.id);
-    setAnnouncements(getAllAnnouncements());
-    setDeleteTarget(null);
+    try {
+      await announcementsApi.delete(deleteTarget.id);
+      setDeleteTarget(null);
+      queryClient.invalidateQueries({ queryKey: ['announcements'] });
+    } catch (err) {
+      alert('Gagal menghapus pengumuman');
+    }
   };
 
   return (
@@ -92,11 +132,11 @@ export const ManageAnnouncements = () => {
 
       {/* Announcements List */}
       <div className="flex flex-col gap-4">
-        {announcements.map((item) => (
+        {announcements.map((item: any) => (
           <div key={item.id} className="bg-white rounded-xl border border-slate-200 p-5 flex gap-4">
-            {item.image && (
+            {item.image_url && (
               <img
-                src={item.image}
+                src={item.image_url}
                 alt={item.title}
                 className="w-20 h-20 rounded-lg object-cover shrink-0 border border-slate-200"
               />
@@ -223,9 +263,10 @@ export const ManageAnnouncements = () => {
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2 text-sm font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-lg cursor-pointer border-none transition-colors"
+                disabled={uploading}
+                className="px-4 py-2 text-sm font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-lg cursor-pointer border-none transition-colors disabled:opacity-50"
               >
-                {editId !== null ? 'Simpan' : 'Tambah'}
+                {uploading ? 'Menyimpan...' : editId !== null ? 'Simpan' : 'Tambah'}
               </button>
             </div>
           </div>

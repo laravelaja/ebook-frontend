@@ -1,10 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { IconArrowLeft, IconCalendar } from '@tabler/icons-react';
-import { ANNOUNCEMENTS } from '../../../../data/EbookDummy';
+import { useAnnouncements } from '../../../../hooks/useApiData';
 
 export const Info = () => {
   const navigate = useNavigate();
+  const { data: announcements = [], isLoading: loading } = useAnnouncements();
 
   return (
     <div className="min-h-full w-full flex flex-col gap-5 px-5 pb-6 pt-5 text-slate-800 relative bg-white">
@@ -34,33 +35,43 @@ export const Info = () => {
         transition={{ delay: 0.1, duration: 0.4 }}
         className="flex flex-col gap-4 overflow-y-auto flex-1 pr-1"
       >
-        {ANNOUNCEMENTS.map((ann) => (
-          <div
-            key={ann.id}
-            onClick={() => navigate(`/info/${ann.id}`)}
-            className="bg-white border border-slate-200/80 rounded-md overflow-hidden flex flex-col cursor-pointer hover:border-slate-300 transition-all active:scale-[0.99]"
-          >
-            <div className="w-full aspect-[21/9] bg-slate-100 overflow-hidden relative border-b border-slate-100">
-              <img
-                src={ann.image}
-                alt={ann.title}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="p-4 flex flex-col gap-1.5">
-              <div className="flex items-center gap-1.5 text-slate-400">
-                <IconCalendar size={12} />
-                <span className="text-[10px] font-bold">{ann.date}</span>
-              </div>
-              <h3 className="text-sm font-black text-slate-800 line-clamp-1 m-0 leading-snug">
-                {ann.title}
-              </h3>
-              <p className="text-xs text-slate-500 line-clamp-2 m-0 leading-relaxed mt-0.5">
-                {ann.excerpt}
-              </p>
-            </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="w-6 h-6 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
           </div>
-        ))}
+        ) : announcements.length > 0 ? (
+          announcements.map((ann: any) => (
+            <div
+              key={ann.id}
+              onClick={() => navigate(`/info/${ann.id}`)}
+              className="bg-white border border-slate-200/80 rounded-md overflow-hidden flex flex-col cursor-pointer hover:border-slate-300 transition-all active:scale-[0.99]"
+            >
+              <div className="w-full aspect-[21/9] bg-slate-100 overflow-hidden relative border-b border-slate-100">
+                <img
+                  src={ann.image_url || ann.image}
+                  alt={ann.title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="p-4 flex flex-col gap-1.5">
+                <div className="flex items-center gap-1.5 text-slate-400">
+                  <IconCalendar size={12} />
+                  <span className="text-[10px] font-bold">{ann.date}</span>
+                </div>
+                <h3 className="text-sm font-black text-slate-800 line-clamp-1 m-0 leading-snug">
+                  {ann.title}
+                </h3>
+                <p className="text-xs text-slate-500 line-clamp-2 m-0 leading-relaxed mt-0.5">
+                  {ann.excerpt}
+                </p>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400">
+            <p className="text-xs">Belum ada pengumuman.</p>
+          </div>
+        )}
       </motion.div>
     </div>
   );

@@ -1,53 +1,37 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { IconSearch, IconTrash, IconEdit, IconUserPlus, IconX, IconUpload } from '@tabler/icons-react';
+import { usersApi } from '../../../api/users';
+import { uploadApi } from '../../../api/upload';
+import { useUsers } from '../../../hooks/useApiData';
 
 interface User {
+  id: string;
   name: string;
   email: string;
-  password: string;
+  password?: string;
   role: 'user' | 'creator' | 'admin';
   bio: string;
   avatar: string;
 }
 
-const STORAGE_KEY = 'users_db';
-
-const DEFAULT_USERS: User[] = [
-  { name: 'Ahmad Fauzi', email: 'ahmad@email.com', password: '123456', role: 'creator', bio: '', avatar: '' },
-  { name: 'Siti Nurhaliza', email: 'siti@email.com', password: '123456', role: 'user', bio: '', avatar: '' },
-  { name: 'Budi Santoso', email: 'budi@email.com', password: '123456', role: 'user', bio: '', avatar: '' },
-  { name: 'Dewi Lestari', email: 'dewi@email.com', password: '123456', role: 'creator', bio: '', avatar: '' },
-  { name: 'Rudi Hermawan', email: 'rudi@email.com', password: '123456', role: 'admin', bio: '', avatar: '' },
-];
-
-const getUsers = (): User[] => {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    try { return JSON.parse(stored); } catch { /* fallback */ }
-  }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_USERS));
-  return DEFAULT_USERS;
-};
-
-const saveUsers = (users: User[]) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-};
-
 export const ManageUsers = () => {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [users, setUsers] = useState<User[]>([]);
   const [showModal, setShowModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
-  const [editIndex, setEditIndex] = useState<number | null>(null);
-  const [form, setForm] = useState<User>({ name: '', email: '', password: '', role: 'user', bio: '', avatar: '' });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState<Omit<User, 'id'> & { password: string }>({
+    name: '', email: '', password: '', role: 'user', bio: '', avatar: ''
+  });
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    setUsers(getUsers());
-  }, []);
+  const { data: users = [] } = useUsers();
 
-  const filteredUsers = users.filter((u) => {
+  const filteredUsers = users.filter((u: any) => {
     const matchSearch = u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
     const matchRole = roleFilter === 'all' || u.role === roleFilter;
     return matchSearch && matchRole;
@@ -62,20 +46,23 @@ export const ManageUsers = () => {
   };
 
   const openAdd = () => {
-    setEditIndex(null);
+    setEditId(null);
     setForm({ name: '', email: '', password: '', role: 'user', bio: '', avatar: '' });
+    setSelectedFile(null);
     setShowModal(true);
   };
 
-  const openEdit = (idx: number) => {
-    setEditIndex(idx);
-    setForm({ ...users[idx] });
+  const openEdit = (user: any) => {
+    setEditId(user.id);
+    setForm({ name: user.name, email: user.email, password: '', role: user.role, bio: user.bio || '', avatar: user.avatar_url || '' });
+    setSelectedFile(null);
     setShowModal(true);
   };
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setSelectedFile(file);
     const reader = new FileReader();
     reader.onloadend = () => {
       setForm({ ...form, avatar: reader.result as string });
@@ -83,37 +70,60 @@ export const ManageUsers = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim() || !form.email.trim()) {
       alert('Nama dan email wajib diisi!');
       return;
     }
-    let updated: User[];
-    if (editIndex !== null) {
-      updated = [...users];
-      updated[editIndex] = { ...form };
-    } else {
-      if (!form.password.trim()) {
-        alert('Password wajib diisi untuk user baru!');
-        return;
+    try {
+      setUploading(true);
+      let avatarUrl = form.avatar;
+
+      if (selectedFile) {
+        avatarUrl = await uploadApi.uploadImage(selectedFile);
       }
-      updated = [...users, { ...form }];
+
+      if (editId !== null) {
+        const body: any = { name: form.name, email: form.email, role: form.role, bio: form.bio, avatar_url: avatarUrl };
+        if (form.password.trim()) {
+          body.password_hash = form.password;
+        }
+        await usersApi.update(editId, body);
+      } else {
+        if (!form.password.trim()) {
+          alert('Password wajib diisi untuk user baru!');
+          setUploading(false);
+          return;
+        }
+        await usersApi.create({ name: form.name, email: form.email, password_hash: form.password, role: form.role });
+      }
+      setShowModal(false);
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    } catch (err) {
+      alert('Gagal menyimpan user');
+    } finally {
+      setUploading(false);
     }
-    saveUsers(updated);
-    setUsers(updated);
-    setShowModal(false);
   };
 
-  const confirmDelete = (idx: number) => {
-    setShowDeleteConfirm(idx);
+  const confirmDelete = (user: any) => {
+    setShowDeleteConfirm(user.id);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (showDeleteConfirm === null) return;
-    const updated = users.filter((_, i) => i !== showDeleteConfirm);
-    saveUsers(updated);
-    setUsers(updated);
-    setShowDeleteConfirm(null);
+    try {
+      await usersApi.delete(showDeleteConfirm);
+      setShowDeleteConfirm(null);
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    } catch (err) {
+      alert('Gagal menghapus user');
+    }
+  };
+
+  const getDeleteUserName = () => {
+    const user = users.find((u: any) => u.id === showDeleteConfirm);
+    return user?.name || '';
   };
 
   return (
@@ -171,48 +181,45 @@ export const ManageUsers = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.map((user, idx) => {
-              const realIdx = users.indexOf(user);
-              return (
-                <tr key={idx} className="border-b border-slate-100 last:border-none hover:bg-slate-50/50 transition-colors">
-                  <td className="px-5 py-3">
-                    {user.avatar ? (
-                      <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full object-cover border border-slate-200" />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">
-                        {user.name.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-5 py-3 text-sm font-semibold text-slate-800">{user.name}</td>
-                  <td className="px-5 py-3 text-sm text-slate-600">{user.email}</td>
-                  <td className="px-5 py-3">
-                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${getRoleBadge(user.role)}`}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-xs text-slate-500 max-w-[150px] truncate">{user.bio || '-'}</td>
-                  <td className="px-5 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => openEdit(realIdx)}
-                        className="w-7 h-7 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer border-none transition-colors"
-                        title="Edit"
-                      >
-                        <IconEdit size={13} />
-                      </button>
-                      <button
-                        onClick={() => confirmDelete(realIdx)}
-                        className="w-7 h-7 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center cursor-pointer border-none transition-colors"
-                        title="Hapus"
-                      >
-                        <IconTrash size={13} />
-                      </button>
+            {filteredUsers.map((user: any) => (
+              <tr key={user.id} className="border-b border-slate-100 last:border-none hover:bg-slate-50/50 transition-colors">
+                <td className="px-5 py-3">
+                  {user.avatar_url ? (
+                    <img src={user.avatar_url} alt={user.name} className="w-8 h-8 rounded-full object-cover border border-slate-200" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">
+                      {user.name.charAt(0).toUpperCase()}
                     </div>
-                  </td>
-                </tr>
-              );
-            })}
+                  )}
+                </td>
+                <td className="px-5 py-3 text-sm font-semibold text-slate-800">{user.name}</td>
+                <td className="px-5 py-3 text-sm text-slate-600">{user.email}</td>
+                <td className="px-5 py-3">
+                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${getRoleBadge(user.role)}`}>
+                    {user.role}
+                  </span>
+                </td>
+                <td className="px-5 py-3 text-xs text-slate-500 max-w-[150px] truncate">{user.bio || '-'}</td>
+                <td className="px-5 py-3 text-right">
+                  <div className="flex items-center justify-end gap-1.5">
+                    <button
+                      onClick={() => openEdit(user)}
+                      className="w-7 h-7 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer border-none transition-colors"
+                      title="Edit"
+                    >
+                      <IconEdit size={13} />
+                    </button>
+                    <button
+                      onClick={() => confirmDelete(user)}
+                      className="w-7 h-7 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center cursor-pointer border-none transition-colors"
+                      title="Hapus"
+                    >
+                      <IconTrash size={13} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
         {filteredUsers.length === 0 && (
@@ -229,7 +236,7 @@ export const ManageUsers = () => {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-base font-bold text-slate-800 m-0">
-                {editIndex !== null ? 'Edit User' : 'Tambah User'}
+                {editId !== null ? 'Edit User' : 'Tambah User'}
               </h3>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer border-none bg-transparent">
                 <IconX size={18} />
@@ -263,7 +270,7 @@ export const ManageUsers = () => {
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-200"
-                  placeholder={editIndex !== null ? 'Kosongkan jika tidak diubah' : 'Password'}
+                  placeholder={editId !== null ? 'Kosongkan jika tidak diubah' : 'Password'}
                 />
               </div>
               <div>
@@ -328,9 +335,10 @@ export const ManageUsers = () => {
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2 text-sm font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-lg cursor-pointer border-none transition-colors"
+                disabled={uploading}
+                className="px-4 py-2 text-sm font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-lg cursor-pointer border-none transition-colors disabled:opacity-50"
               >
-                {editIndex !== null ? 'Simpan' : 'Tambah'}
+                {uploading ? 'Menyimpan...' : editId !== null ? 'Simpan' : 'Tambah'}
               </button>
             </div>
           </div>
@@ -343,7 +351,7 @@ export const ManageUsers = () => {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
             <h3 className="text-base font-bold text-slate-800 m-0 mb-2">Konfirmasi Hapus</h3>
             <p className="text-sm text-slate-600 m-0">
-              Apakah Anda yakin ingin menghapus user <strong>"{users[showDeleteConfirm]?.name}"</strong>? Tindakan ini tidak dapat dibatalkan.
+              Apakah Anda yakin ingin menghapus user <strong>"{getDeleteUserName()}"</strong>? Tindakan ini tidak dapat dibatalkan.
             </p>
             <div className="flex justify-end gap-2 mt-5">
               <button

@@ -1,16 +1,22 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { BANNERS } from '../../data/EbookDummy';
 
-export const WelcomeBanner = () => {
+interface WelcomeBannerProps {
+  banners: any[];
+}
+
+export const WelcomeBanner = ({ banners }: WelcomeBannerProps) => {
   const [activeBanner, setActiveBanner] = useState(0);
 
   useEffect(() => {
+    if (banners.length === 0) return;
     const interval = setInterval(() => {
-      setActiveBanner((prev) => (prev + 1) % BANNERS.length);
+      setActiveBanner((prev) => (prev + 1) % banners.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [banners.length]);
+
+  if (banners.length === 0) return null;
 
   return (
     <motion.div
@@ -23,10 +29,10 @@ export const WelcomeBanner = () => {
         className="flex transition-transform duration-500 ease-out" 
         style={{ transform: `translateX(-${activeBanner * 100}%)` }}
       >
-        {BANNERS.map((banner) => (
+        {banners.map((banner) => (
           <div key={banner.id} className="w-full shrink-0 aspect-[21/9] min-h-[140px] relative overflow-hidden bg-slate-100">
             <img 
-              src={banner.image} 
+              src={banner.image_url || banner.image} 
               alt={banner.title} 
               className="w-full h-full object-cover"
             />
@@ -35,7 +41,7 @@ export const WelcomeBanner = () => {
       </div>
       {/* Indicators Dots (Flat) */}
       <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10">
-        {BANNERS.map((_, index) => (
+        {banners.map((_, index) => (
           <button
             key={index}
             onClick={() => setActiveBanner(index)}

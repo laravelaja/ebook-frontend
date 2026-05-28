@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CATEGORIES } from '../../../../data/EbookDummy';
-import { getAllEbooks } from '../../../../utils/ebookStore';
+import { useEbooks, useCategories } from '../../../../hooks/useApiData';
 import { SearchInput } from '../../components/SearchInput';
 import { Chategory } from '../../components/Chategory';
 import { IconSearch } from '@tabler/icons-react';
-import { useMemo } from 'react';
 
 export const EbookList = () => {
   const navigate = useNavigate();
@@ -25,18 +23,19 @@ export const EbookList = () => {
     }
   }, [location.state]);
 
-  const ebooks = useMemo(() => getAllEbooks(), []);
+  // Fetch categories
+  const { data: categoriesData = [] } = useCategories();
+  const categories = ['Semua', ...categoriesData.map((c: any) => c.name || c)];
 
-  // Filter logic
-  const filteredEbooks = ebooks.filter((book) => {
+  // Fetch ebooks based on selected category
+  const { data: ebooks = [], isLoading: loading } = useEbooks(selectedCategory);
+
+  // Filter by search query (client-side)
+  const filteredEbooks = ebooks.filter((book: any) => {
     const matchesSearch =
       book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      book.author.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesCategory =
-      selectedCategory === 'Semua' || book.category === selectedCategory;
-
-    return matchesSearch && matchesCategory;
+      (book.author || book.author_name || '').toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
   });
 
   return (
@@ -65,7 +64,7 @@ export const EbookList = () => {
       >
         <SearchInput value={searchQuery} onChange={setSearchQuery} />
         <Chategory
-          categories={CATEGORIES}
+          categories={categories}
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}
         />
@@ -78,9 +77,13 @@ export const EbookList = () => {
         transition={{ delay: 0.2, duration: 0.4 }}
         className="flex-1"
       >
-        {filteredEbooks.length > 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="w-6 h-6 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : filteredEbooks.length > 0 ? (
           <div className="grid grid-cols-3 gap-4">
-            {filteredEbooks.map((book) => (
+            {filteredEbooks.map((book: any) => (
               <div 
                 key={book.id} 
                 onClick={() => navigate(`/ebooks/${book.id}`)}
@@ -88,7 +91,7 @@ export const EbookList = () => {
               >
                 <div className="aspect-[148/210] w-full rounded-md overflow-hidden bg-slate-100 relative transition-transform duration-300 group-hover:-translate-y-1">
                   <img
-                    src={book.cover}
+                    src={book.cover_url || book.cover}
                     alt={book.title}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                   />

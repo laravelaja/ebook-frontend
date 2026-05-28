@@ -1,22 +1,23 @@
 import { useNavigate } from 'react-router-dom';
-import type { Ebook } from '../../../../../data/EbookDummy';
 import { IconEdit, IconTrash, IconFileText, IconBook } from '@tabler/icons-react';
 
 interface CreatorBookCardProps {
-  book: Ebook;
+  book: any;
   onDelete: (id: number) => void;
 }
 
 export const CreatorBookCard = ({ book, onDelete }: CreatorBookCardProps) => {
   const navigate = useNavigate();
-  const pageCount = book.pages?.length || 0;
+  const pageCount = book.ebook_pages?.length || book.pages?.length || 0;
   const isPublished = pageCount > 0;
+  const cover = book.cover_url || book.cover;
+  const category = book.category_name || book.category || '';
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-4 flex gap-4 items-center hover:border-slate-300 transition-colors">
       {/* Cover Image */}
       <img
-        src={book.cover}
+        src={cover}
         alt={book.title}
         className="w-14 h-20 lg:w-16 lg:h-22 rounded-lg object-cover border border-slate-200 shrink-0 bg-slate-50"
       />
@@ -25,7 +26,7 @@ export const CreatorBookCard = ({ book, onDelete }: CreatorBookCardProps) => {
       <div className="flex-1 min-w-0 flex flex-col gap-1.5">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md">
-            {book.category}
+            {category}
           </span>
           <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
             isPublished 

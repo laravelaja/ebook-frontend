@@ -1,15 +1,24 @@
-import { useState, useRef, useMemo, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import HTMLFlipBook from 'react-pageflip-enhanced';
 import { IconArrowLeft, IconChevronLeft, IconChevronRight, IconVolume, IconVolumeOff } from '@tabler/icons-react';
-import { getEbookById } from '../../../../utils/ebookStore';
+import { useEbookById } from '../../../../hooks/useApiData';
 import { playPageFlipSound } from '../../../../utils/pageFlipSound';
+
+interface PageContent {
+  chapter: string;
+  paragraphs: string[];
+  content?: string;
+  verticalAlign?: 'top' | 'center' | 'bottom';
+  showChapterTitle?: boolean;
+  showPageNumber?: boolean;
+}
 
 export const EbookRead = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const book = getEbookById(Number(id));
 
+  const { data: book, isLoading: loading, isError: error } = useEbookById(id);
   const [currentPage, setCurrentPage] = useState(1);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
@@ -23,10 +32,8 @@ export const EbookRead = () => {
       const history = localStorage.getItem(historyKey);
       const historyList = history ? JSON.parse(history) : {};
       
-      const pagesContent = book.pages && book.pages.length > 0
-        ? book.pages
-        : (bookContentsMap[book.id] || defaultExcerpts);
-      const totalPagesCount = pagesContent.length;
+      const pages = getPageContents();
+      const totalPagesCount = pages.length;
 
       if (!historyList[book.id]) {
         historyList[book.id] = {
@@ -41,7 +48,54 @@ export const EbookRead = () => {
     }
   }, [book]);
 
-  if (!book) {
+  // Convert API ebook_pages to the format the reader expects
+  const getPageContents = (): PageContent[] => {
+    if (!book) return [];
+
+    // Check for ebook_pages from API
+    if (book.ebook_pages && book.ebook_pages.length > 0) {
+      return book.ebook_pages
+        .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+        .map((page: any) => ({
+          chapter: page.chapter || '',
+          paragraphs: page.content ? [] : [],
+          content: page.content || '',
+          verticalAlign: page.vertical_align || 'top',
+          showChapterTitle: page.show_chapter_title ?? false,
+          showPageNumber: page.show_page_number ?? false,
+        }));
+    }
+
+    // Fallback to pages array (legacy format)
+    if (book.pages && book.pages.length > 0) {
+      return book.pages;
+    }
+
+    // Default content if no pages exist
+    return [
+      {
+        chapter: 'Bab 1: Langkah Awal Menuju Perubahan',
+        paragraphs: [
+          `Setiap bab di dalam buku "${book.title}" ini ditulis untuk membimbing Anda melalui proses transformatif yang mendalam. Penulis ${book.author_name || book.author || 'penulis'} merangkai setiap argumentasi secara sistematis agar mudah dipahami dan dipraktikkan langsung.`,
+          'Kita seringkali menunda proses belajar karena merasa belum siap menghadapi kompleksitas di dalamnya. Padahal, kesiapan sejati lahir seiring berjalannya proses itu sendiri. Membuka halaman pertama adalah komitmen terkecil yang berdampak paling besar.'
+        ],
+        content: '',
+        verticalAlign: 'top' as const,
+        showChapterTitle: true,
+        showPageNumber: false,
+      }
+    ];
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-full w-full flex items-center justify-center bg-gradient-to-br from-[#f8f3e8] via-[#eedfb8] to-[#e4d3a2]">
+        <div className="w-6 h-6 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error || !book) {
     return (
       <div className="min-h-full w-full flex flex-col items-center justify-center p-5 text-center bg-white text-slate-800">
         <h3 className="text-lg font-bold">Ebook tidak ditemukan</h3>
@@ -55,97 +109,17 @@ export const EbookRead = () => {
     );
   }
 
-  // Book-specific authentic mock excerpts to look like a real novel/book
-  const bookContentsMap: Record<number, { chapter: string; paragraphs: string[] }[]> = {
-    1: [ // Atomic Habits
-      {
-        chapter: 'Bab 1: Kekuatan Dahsyat Perubahan 1%',
-        paragraphs: [
-          'Sangat mudah untuk melebih-lebihkan pentingnya satu momen penting dan meremehkan nilai membuat perbaikan kecil setiap hari. Terlalu sering kita meyakinkan diri sendiri bahwa kesuksesan besar menuntut tindakan yang masif.',
-          'Sementara itu, perbaikan 1 persen setiap hari mungkin tidak terlalu terasa—bahkan terkadang tidak disadari—tetapi dalam jangka panjang, dampaknya bisa sangat luar biasa. Efek dari kebiasaan kecil akan terus berlipat ganda seiring berjalannya waktu.'
-        ]
-      },
-      {
-        chapter: 'Bab 1: Kekuatan Dahsyat Perubahan 1%',
-        paragraphs: [
-          'Bayangkan sebuah pesawat yang lepas landas dari Los Angeles menuju New York City. Jika pilot mengubah arah moncong pesawat hanya 3,5 derajat ke arah selatan, pesawat tersebut akan mendarat di Washington, D.C., bukan di New York.',
-          'Perubahan yang sangat kecil itu hampir tidak terasa saat lepas landas. Namun, setelah melintasi seluruh wilayah Amerika Serikat, perbedaan kecil itu menumpuk dan membawa pesawat ke tujuan yang sangat berbeda.'
-        ]
-      },
-      {
-        chapter: 'Bab 2: Fokus pada Sistem, Bukan Sasaran',
-        paragraphs: [
-          'Sasaran adalah tentang hasil yang ingin Anda capai. Sistem adalah tentang proses yang mengarah pada hasil tersebut. Jika Anda menginginkan hasil yang lebih baik, lupakan sasaran Anda. Fokuslah pada sistem Anda sebagai gantinya.',
-          'Pemenang dan pecundang memiliki sasaran yang sama. Setiap peserta olimpiade ingin memenangkan medali emas. Jadi, sasaran tidak bisa menjadi pembeda. Yang membedakan adalah komitmen mereka pada sistem perbaikan harian.'
-        ]
-      }
-    ],
-    3: [ // Filosofi Teras
-      {
-        chapter: 'Bab 1: Menjinakkan Kekhawatiran Hidup',
-        paragraphs: [
-          'Lebih dari dua ribu tahun yang lalu, sekelompok filsuf di Athena menemukan cara hidup yang sangat praktis untuk mengatasi kecemasan dan emosi negatif. Ajaran ini disebut Stoisisme, atau di dalam buku ini kita sebut Filosofi Teras.',
-          'Tujuan utama dari Filosofi Teras bukan untuk menjadi manusia dingin tanpa emosi, melainkan untuk memiliki ketenteraman jiwa (ataraxia) yang tidak mudah goyah oleh hal-hal di luar kendali kita.'
-        ]
-      },
-      {
-        chapter: 'Bab 1: Menjinakkan Kekhawatiran Hidup',
-        paragraphs: [
-          'Di dunia ini, ada hal-hal yang ada di bawah kendali kita (dikotomi kendali) seperti opini, keinginan, dan tindakan kita sendiri. Namun, ada jauh lebih banyak hal yang di luar kendali kita seperti reputasi, cuaca, tindakan orang lain, dan kesehatan tubuh.',
-          'Stres dan penderitaan batin terjadi ketika kita menggantungkan kebahagiaan kita pada hal-hal yang berada di luar kendali kita, sementara mengabaikan apa yang sebenarnya bisa kita kendalikan secara penuh.'
-        ]
-      },
-      {
-        chapter: 'Bab 2: Mengendalikan Interpretasi Kita',
-        paragraphs: [
-          'Bukan peristiwa itu sendiri yang membuat kita cemas atau marah, melainkan opini dan interpretasi kita terhadap peristiwa tersebut. Ketika seseorang menghina Anda, itu hanya getaran suara. Rasa sakit hati muncul karena pikiran Anda memutuskan untuk merasa terhina.',
-          'Dengan memahami hal ini, kita memiliki jeda waktu untuk berpikir rasional sebelum membiarkan emosi negatif mengambil alih tindakan kita. Inilah awal dari kebebasan emosi yang sejati.'
-        ]
-      }
-    ]
-  };
-
-  // Fallback content if book has no specific mock content
-  const defaultExcerpts = [
-    {
-      chapter: 'Bab 1: Langkah Awal Menuju Perubahan',
-      paragraphs: [
-        `Setiap bab di dalam buku "${book.title}" ini ditulis untuk membimbing Anda melalui proses transformatif yang mendalam. Penulis ${book.author} merangkai setiap argumentasi secara sistematis agar mudah dipahami dan dipraktikkan langsung.`,
-        'Kita seringkali menunda proses belajar karena merasa belum siap menghadapi kompleksitas di dalamnya. Padahal, kesiapan sejati lahir seiring berjalannya proses itu sendiri. Membuka halaman pertama adalah komitmen terkecil yang berdampak paling besar.'
-      ]
-    },
-    {
-      chapter: 'Bab 1: Langkah Awal Menuju Perubahan',
-      paragraphs: [
-        'Dalam fase adaptasi ini, Anda akan menghadapi berbagai keraguan dan pola pikir lama yang menghambat. Hal ini wajar. Kunci utamanya adalah tetap konsisten dan menyediakan waktu khusus setiap hari untuk membaca tanpa gangguan.',
-        'Proses asimilasi pengetahuan baru membutuhkan ketenangan batin. Cobalah untuk meresapi setiap kalimat, bukan sekadar menyelesaikannya secepat mungkin. Nikmati alur dan keindahan gagasan yang disampaikan penulis.'
-      ]
-    },
-    {
-      chapter: 'Bab 2: Menjaga Konsistensi Membaca',
-      paragraphs: [
-        'Konsistensi adalah jembatan antara impian dan pencapaian. Di bab kedua ini, fokus beralih ke bagaimana mempertahankan ritme membaca di tengah kesibukan harian yang padat.',
-        `Melalui "${book.title}", kita belajar bahwa membaca bukan sekadar aktivitas mengisi waktu luang, melainkan sebuah investasi intelektual jangka panjang yang akan membentuk cara kita mengambil keputusan di masa depan.`
-      ]
-    }
-  ];
-
-  const pagesContent = book.pages && book.pages.length > 0
-    ? book.pages
-    : (bookContentsMap[book.id] || defaultExcerpts);
+  const pagesContent = getPageContents();
   const totalPages = pagesContent.length;
+  const author = book.author_name || book.author || 'Anonim';
 
-  // Read display settings - per page
   // Page number logic: if a page has showPageNumber=true, that page and all subsequent pages show numbers
-  // Find the first page index where showPageNumber is enabled
-  const pageNumberStartIndex = useMemo(() => {
+  const pageNumberStartIndex = (() => {
     for (let i = 0; i < pagesContent.length; i++) {
       if (pagesContent[i].showPageNumber) return i;
     }
-    // Fallback: check legacy book-level settings
-    if (book.settings?.showPageNumber) return 0;
-    return -1; // no page numbers
-  }, [pagesContent, book.settings]);
+    return -1;
+  })();
 
   const handleNext = () => {
     if (bookRef.current) {
@@ -201,75 +175,73 @@ export const EbookRead = () => {
 
   const fontSizeClass = 'text-[15px] leading-[1.75] text-[#2b1f1d]';
 
-  const renderedPages = useMemo(() => {
-    return pagesContent.map((content, index) => (
-      <div
-        key={index}
-        className="relative w-full h-full flex flex-col px-8 py-9 rounded-md border shadow-sm select-none overflow-hidden bg-[#fffdf9] border-[#ebdcb9] text-[#3c2f2f]"
-      >
-        {/* Spine Gutter Shadow */}
-        <div className="absolute inset-y-0 left-0 w-8 pointer-events-none rounded-l-md bg-gradient-to-r from-black/12 via-black/3 to-transparent z-20" />
-        <div className="absolute inset-y-0 left-0 w-[1px] pointer-events-none z-20 bg-black/5" />
-        <div className="absolute inset-y-0 right-0 w-[2px] pointer-events-none rounded-r-md bg-gradient-to-l from-white/5 to-transparent z-20" />
+  const renderedPages = pagesContent.map((content, index) => (
+    <div
+      key={index}
+      className="relative w-full h-full flex flex-col px-8 py-9 rounded-md border shadow-sm select-none overflow-hidden bg-[#fffdf9] border-[#ebdcb9] text-[#3c2f2f]"
+    >
+      {/* Spine Gutter Shadow */}
+      <div className="absolute inset-y-0 left-0 w-8 pointer-events-none rounded-l-md bg-gradient-to-r from-black/12 via-black/3 to-transparent z-20" />
+      <div className="absolute inset-y-0 left-0 w-[1px] pointer-events-none z-20 bg-black/5" />
+      <div className="absolute inset-y-0 right-0 w-[2px] pointer-events-none rounded-r-md bg-gradient-to-l from-white/5 to-transparent z-20" />
 
-        <div className="flex-1 flex flex-col z-10 h-full">
-          {/* Chapter Title - per page */}
-          {(content.showChapterTitle || (!book.isUserCreated && content.showChapterTitle !== false)) && (
-          <div className="flex flex-col items-center pb-3 mb-5 border-b border-black/5 text-center shrink-0">
-            <span className="font-sans text-[10px] font-bold uppercase tracking-widest leading-none text-sky-700">
-              {content.chapter}
-            </span>
-          </div>
-          )}
-
-          {content.content ? (
-            <>
-              {(content.verticalAlign === 'center' || content.verticalAlign === 'bottom') && (
-                <div className="flex-1" />
-              )}
-              <div className="shrink-0">
-                <div 
-                  className="preview-content"
-                  dangerouslySetInnerHTML={{ __html: content.content }}
-                />
-              </div>
-              {content.verticalAlign === 'center' && (
-                <div className="flex-1" />
-              )}
-            </>
-          ) : (
-            <div className={`flex-1 flex flex-col gap-4 font-serif ${fontSizeClass}`}>
-              {content.paragraphs.map((p, idx) => {
-                const isFirstParagraph = idx === 0;
-                return (
-                  <p
-                    key={idx}
-                    className={`${
-                      isFirstParagraph
-                        ? 'text-left indent-0 first-letter:text-5xl first-letter:font-bold first-letter:float-left first-letter:mr-2.5 first-letter:leading-[0.85] first-letter:font-sans first-letter:text-sky-700'
-                        : 'text-justify indent-6'
-                    }`}
-                  >
-                    {p}
-                  </p>
-                );
-              })}
-              <div className="text-center py-4 text-xs opacity-35 select-none font-sans">❦</div>
-            </div>
-          )}
-
-          {/* Page Number */}
-          {pageNumberStartIndex >= 0 && index >= pageNumberStartIndex && (
-          <div className="text-center pt-3 mt-auto border-t border-black/5 shrink-0">
-            <span className="text-[9px] tracking-wider font-medium text-[#a09080]" style={{ fontFamily: 'Georgia, serif' }}>
-              — halaman {index - pageNumberStartIndex + 1} —
-            </span>
-          </div>
-          )}
+      <div className="flex-1 flex flex-col z-10 h-full">
+        {/* Chapter Title - per page */}
+        {(content.showChapterTitle || (!book.isUserCreated && content.showChapterTitle !== false)) && content.chapter && (
+        <div className="flex flex-col items-center pb-3 mb-5 border-b border-black/5 text-center shrink-0">
+          <span className="font-sans text-[10px] font-bold uppercase tracking-widest leading-none text-sky-700">
+            {content.chapter}
+          </span>
         </div>
+        )}
+
+        {content.content ? (
+          <>
+            {(content.verticalAlign === 'center' || content.verticalAlign === 'bottom') && (
+              <div className="flex-1" />
+            )}
+            <div className="shrink-0">
+              <div 
+                className="preview-content"
+                dangerouslySetInnerHTML={{ __html: content.content }}
+              />
+            </div>
+            {content.verticalAlign === 'center' && (
+              <div className="flex-1" />
+            )}
+          </>
+        ) : (
+          <div className={`flex-1 flex flex-col gap-4 font-serif ${fontSizeClass}`}>
+            {content.paragraphs.map((p, idx) => {
+              const isFirstParagraph = idx === 0;
+              return (
+                <p
+                  key={idx}
+                  className={`${
+                    isFirstParagraph
+                      ? 'text-left indent-0 first-letter:text-5xl first-letter:font-bold first-letter:float-left first-letter:mr-2.5 first-letter:leading-[0.85] first-letter:font-sans first-letter:text-sky-700'
+                      : 'text-justify indent-6'
+                  }`}
+                >
+                  {p}
+                </p>
+              );
+            })}
+            <div className="text-center py-4 text-xs opacity-35 select-none font-sans">❦</div>
+          </div>
+        )}
+
+        {/* Page Number */}
+        {pageNumberStartIndex >= 0 && index >= pageNumberStartIndex && (
+        <div className="text-center pt-3 mt-auto border-t border-black/5 shrink-0">
+          <span className="text-[9px] tracking-wider font-medium text-[#a09080]" style={{ fontFamily: 'Georgia, serif' }}>
+            — halaman {index - pageNumberStartIndex + 1} —
+          </span>
+        </div>
+        )}
       </div>
-    ));
-  }, [pagesContent, fontSizeClass, pageNumberStartIndex, book.isUserCreated]);
+    </div>
+  ));
 
   return (
     <div className="min-h-full w-full flex flex-col bg-gradient-to-br from-[#f8f3e8] via-[#eedfb8] to-[#e4d3a2]">
@@ -291,7 +263,7 @@ export const EbookRead = () => {
             {book.title}
           </h4>
           <span className="text-[9px] text-slate-400 font-semibold leading-none truncate block mt-0.5 max-w-[180px]">
-            {book.author}
+            {author}
           </span>
         </div>
 

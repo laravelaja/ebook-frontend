@@ -1,35 +1,46 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { IconPlus, IconTrash, IconEdit, IconPhoto, IconX, IconUpload } from '@tabler/icons-react';
-import { getAllBanners, saveBanner, deleteBanner } from '../../../utils/bannerStore';
-import type { Banner } from '../../../utils/bannerStore';
+import { bannersApi } from '../../../api/banners';
+import { uploadApi } from '../../../api/upload';
+import { useBanners } from '../../../hooks/useApiData';
+
+interface Banner {
+  id: string;
+  title: string;
+  image_url: string;
+}
 
 export const ManageCarousel = () => {
-  const [banners, setBanners] = useState<Banner[]>([]);
+  const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ title: '', image: '' });
   const [deleteTarget, setDeleteTarget] = useState<Banner | null>(null);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  useEffect(() => {
-    setBanners(getAllBanners());
-  }, []);
+  const { data: banners = [] } = useBanners();
 
   const openAdd = () => {
     setEditId(null);
     setForm({ title: '', image: '' });
+    setSelectedFile(null);
     setShowModal(true);
   };
 
   const openEdit = (banner: Banner) => {
     setEditId(banner.id);
-    setForm({ title: banner.title, image: banner.image });
+    setForm({ title: banner.title, image: banner.image_url });
+    setSelectedFile(null);
     setShowModal(true);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setSelectedFile(file);
     const reader = new FileReader();
     reader.onloadend = () => {
       setForm({ ...form, image: reader.result as string });
@@ -37,29 +48,47 @@ export const ManageCarousel = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleSave = () => {
-    if (!form.title.trim() || !form.image.trim()) {
+  const handleSave = async () => {
+    if (!form.title.trim() || (!form.image.trim() && !selectedFile)) {
       alert('Judul dan gambar wajib diisi!');
       return;
     }
-    if (editId !== null) {
-      saveBanner({ id: editId, ...form });
-    } else {
-      saveBanner(form);
+    try {
+      setUploading(true);
+      let imageUrl = form.image;
+
+      // Upload new file if selected
+      if (selectedFile) {
+        imageUrl = await uploadApi.uploadImage(selectedFile);
+      }
+
+      if (editId !== null) {
+        await bannersApi.update(editId, { title: form.title, image_url: imageUrl });
+      } else {
+        await bannersApi.create(form.title, imageUrl);
+      }
+      setShowModal(false);
+      queryClient.invalidateQueries({ queryKey: ['banners'] });
+    } catch (err) {
+      alert('Gagal menyimpan banner');
+    } finally {
+      setUploading(false);
     }
-    setBanners(getAllBanners());
-    setShowModal(false);
   };
 
   const confirmDelete = (banner: Banner) => {
     setDeleteTarget(banner);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteTarget) return;
-    deleteBanner(deleteTarget.id);
-    setBanners(getAllBanners());
-    setDeleteTarget(null);
+    try {
+      await bannersApi.delete(deleteTarget.id);
+      setDeleteTarget(null);
+      queryClient.invalidateQueries({ queryKey: ['banners'] });
+    } catch (err) {
+      alert('Gagal menghapus banner');
+    }
   };
 
   return (
@@ -81,11 +110,11 @@ export const ManageCarousel = () => {
 
       {/* Banner Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-        {banners.map((banner) => (
+        {banners.map((banner: any) => (
           <div key={banner.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden group">
             <div className="relative aspect-[16/7] bg-slate-100">
               <img
-                src={banner.image}
+                src={banner.image_url}
                 alt={banner.title}
                 className="w-full h-full object-cover"
               />
@@ -179,9 +208,10 @@ export const ManageCarousel = () => {
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2 text-sm font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-lg cursor-pointer border-none transition-colors"
+                disabled={uploading}
+                className="px-4 py-2 text-sm font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-lg cursor-pointer border-none transition-colors disabled:opacity-50"
               >
-                {editId !== null ? 'Simpan' : 'Tambah'}
+                {uploading ? 'Menyimpan...' : editId !== null ? 'Simpan' : 'Tambah'}
               </button>
             </div>
           </div>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { IconMail, IconLock, IconUser, IconArrowLeft } from '@tabler/icons-react';
+import { authApi } from '../../../api/auth';
 
 export const Register = () => {
   const navigate = useNavigate();
@@ -10,7 +11,7 @@ export const Register = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -19,36 +20,14 @@ export const Register = () => {
       return;
     }
 
-    const dbStr = localStorage.getItem('users_db');
-    const users = dbStr ? JSON.parse(dbStr) : [];
-    
-    // Check if email already registered
-    const exists = users.some((u: any) => u.email === email);
-    if (exists) {
-      setError('Email sudah terdaftar');
-      return;
+    try {
+      const response = await authApi.register(name, email, password);
+      localStorage.setItem('access_token', response.access_token);
+      localStorage.setItem('logged_in_user', JSON.stringify(response.user));
+      navigate('/profile');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Gagal mendaftar. Silakan coba lagi.');
     }
-
-    const newUser = {
-      name,
-      email,
-      password,
-      bio: 'Pembaca buku baru di EbookApp.',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80'
-    };
-
-    users.push(newUser);
-    localStorage.setItem('users_db', JSON.stringify(users));
-
-    // Auto login
-    const sessionUser = {
-      name: newUser.name,
-      email: newUser.email,
-      bio: newUser.bio,
-      avatar: newUser.avatar
-    };
-    localStorage.setItem('logged_in_user', JSON.stringify(sessionUser));
-    navigate('/profile');
   };
 
   return (

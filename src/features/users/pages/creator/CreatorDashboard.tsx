@@ -1,43 +1,27 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { IconArrowLeft, IconPlus, IconBook, IconFileText, IconPencil, IconSearch } from '@tabler/icons-react';
-import { getAllEbooks, deleteEbook } from '../../../../utils/ebookStore';
+import { ebooksApi } from '../../../../api/ebooks';
+import { useMyBooks } from '../../../../hooks/useApiData';
 import { CreatorBookCard } from './components/CreatorBookCard';
-import type { Ebook } from '../../../../data/EbookDummy';
 
 export const CreatorDashboard = () => {
   const navigate = useNavigate();
-  const [myBooks, setMyBooks] = useState<Ebook[]>([]);
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Load user name and books
-  const loadData = () => {
-    const savedUser = localStorage.getItem('user');
-    let currentUserName = 'Ahmad';
-    if (savedUser) {
-      try {
-        const parsed = JSON.parse(savedUser);
-        if (parsed.name) currentUserName = parsed.name;
-      } catch {}
-    }
+  const { data: myBooks = [], isLoading: loading } = useMyBooks();
 
-    const allBooks = getAllEbooks();
-    const filtered = allBooks.filter(
-      (b) => b.isUserCreated === true || b.author.toLowerCase() === currentUserName.toLowerCase()
-    );
-    setMyBooks(filtered);
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus buku ini beserta seluruh isinya?')) {
-      const success = deleteEbook(id);
-      if (success) {
-        loadData();
+      try {
+        await ebooksApi.delete(String(id));
+        queryClient.invalidateQueries({ queryKey: ['myBooks'] });
+      } catch (error) {
+        console.error('Error deleting ebook:', error);
+        alert('Gagal menghapus ebook. Silakan coba lagi.');
       }
     }
   };
@@ -45,7 +29,7 @@ export const CreatorDashboard = () => {
   // Stats calculation
   const stats = useMemo(() => {
     const total = myBooks.length;
-    const published = myBooks.filter((b) => (b.pages?.length || 0) > 0).length;
+    const published = myBooks.filter((b: any) => (b.ebook_pages?.length || b.pages?.length || 0) > 0).length;
     const drafts = total - published;
     return { total, published, drafts };
   }, [myBooks]);
@@ -53,9 +37,9 @@ export const CreatorDashboard = () => {
   // Filtered books
   const filteredBooks = useMemo(() => {
     if (!searchQuery.trim()) return myBooks;
-    return myBooks.filter((b) =>
+    return myBooks.filter((b: any) =>
       b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      b.category.toLowerCase().includes(searchQuery.toLowerCase())
+      (b.category_name || b.category || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [myBooks, searchQuery]);
 
@@ -101,98 +85,106 @@ export const CreatorDashboard = () => {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-5 lg:px-8 py-6">
-        {/* Metrics Banner */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.4 }}
-          className="grid grid-cols-3 gap-4 mb-6"
-        >
-          <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col items-center text-center">
-            <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center mb-2">
-              <IconBook size={16} className="text-slate-500" />
-            </div>
-            <span className="text-2xl font-black text-slate-800">{stats.total}</span>
-            <span className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Total Buku</span>
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="w-6 h-6 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
           </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col items-center text-center">
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center mb-2">
-              <IconFileText size={16} className="text-emerald-500" />
-            </div>
-            <span className="text-2xl font-black text-slate-800">{stats.published}</span>
-            <span className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Terbit</span>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col items-center text-center">
-            <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center mb-2">
-              <IconPencil size={16} className="text-amber-500" />
-            </div>
-            <span className="text-2xl font-black text-slate-800">{stats.drafts}</span>
-            <span className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Draf</span>
-          </div>
-        </motion.div>
-
-        {/* Search bar */}
-        {myBooks.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.15, duration: 0.4 }}
-            className="mb-5"
-          >
-            <div className="relative">
-              <IconSearch size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari judul atau kategori..."
-                className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-300 transition-all"
-              />
-            </div>
-          </motion.div>
-        )}
-
-        {/* Book List */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.4 }}
-          className="flex flex-col gap-3"
-        >
-          {filteredBooks.length > 0 ? (
-            filteredBooks.map((book) => (
-              <CreatorBookCard
-                key={book.id}
-                book={book}
-                onDelete={handleDelete}
-              />
-            ))
-          ) : myBooks.length > 0 && searchQuery ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
-              <IconSearch size={32} className="text-slate-300 mb-3" />
-              <h4 className="text-sm font-bold text-slate-600 m-0">Tidak Ditemukan</h4>
-              <p className="text-xs text-slate-400 mt-1.5">
-                Tidak ada buku yang cocok dengan pencarian "{searchQuery}"
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400 bg-white border border-slate-200 rounded-xl">
-              <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
-                <IconPencil size={24} className="text-slate-400" />
+        ) : (
+          <>
+            {/* Metrics Banner */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, duration: 0.4 }}
+              className="grid grid-cols-3 gap-4 mb-6"
+            >
+              <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col items-center text-center">
+                <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center mb-2">
+                  <IconBook size={16} className="text-slate-500" />
+                </div>
+                <span className="text-2xl font-black text-slate-800">{stats.total}</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Total Buku</span>
               </div>
-              <h4 className="text-sm font-bold text-slate-700 m-0">Belum Ada Karya</h4>
-              <p className="text-xs text-slate-400 mt-2 max-w-[240px] leading-relaxed">
-                Mulai bagikan pengetahuan atau ceritamu sekarang dengan menulis ebook pertamamu!
-              </p>
-              <button
-                onClick={() => navigate('/creator/new')}
-                className="mt-5 px-5 py-2.5 bg-slate-800 text-white text-xs font-bold rounded-lg cursor-pointer hover:bg-slate-900 border-none transition-colors"
+              <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col items-center text-center">
+                <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center mb-2">
+                  <IconFileText size={16} className="text-emerald-500" />
+                </div>
+                <span className="text-2xl font-black text-slate-800">{stats.published}</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Terbit</span>
+              </div>
+              <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col items-center text-center">
+                <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center mb-2">
+                  <IconPencil size={16} className="text-amber-500" />
+                </div>
+                <span className="text-2xl font-black text-slate-800">{stats.drafts}</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Draf</span>
+              </div>
+            </motion.div>
+
+            {/* Search bar */}
+            {myBooks.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.15, duration: 0.4 }}
+                className="mb-5"
               >
-                Mulai Menulis
-              </button>
-            </div>
-          )}
-        </motion.div>
+                <div className="relative">
+                  <IconSearch size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Cari judul atau kategori..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-300 transition-all"
+                  />
+                </div>
+              </motion.div>
+            )}
+
+            {/* Book List */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.4 }}
+              className="flex flex-col gap-3"
+            >
+              {filteredBooks.length > 0 ? (
+                filteredBooks.map((book: any) => (
+                  <CreatorBookCard
+                    key={book.id}
+                    book={book}
+                    onDelete={handleDelete}
+                  />
+                ))
+              ) : myBooks.length > 0 && searchQuery ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
+                  <IconSearch size={32} className="text-slate-300 mb-3" />
+                  <h4 className="text-sm font-bold text-slate-600 m-0">Tidak Ditemukan</h4>
+                  <p className="text-xs text-slate-400 mt-1.5">
+                    Tidak ada buku yang cocok dengan pencarian "{searchQuery}"
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400 bg-white border border-slate-200 rounded-xl">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                    <IconPencil size={24} className="text-slate-400" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-700 m-0">Belum Ada Karya</h4>
+                  <p className="text-xs text-slate-400 mt-2 max-w-[240px] leading-relaxed">
+                    Mulai bagikan pengetahuan atau ceritamu sekarang dengan menulis ebook pertamamu!
+                  </p>
+                  <button
+                    onClick={() => navigate('/creator/new')}
+                    className="mt-5 px-5 py-2.5 bg-slate-800 text-white text-xs font-bold rounded-lg cursor-pointer hover:bg-slate-900 border-none transition-colors"
+                  >
+                    Mulai Menulis
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
       </div>
     </div>
   );

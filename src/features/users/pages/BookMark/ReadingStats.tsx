@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { 
   IconBook, 
-  IconClock, 
-  IconFlame, 
+  IconBookmark,
+  IconFileText,
   IconTrophy, 
   IconAward, 
   IconLock,
@@ -16,8 +16,8 @@ interface ReadingProgress {
 }
 
 interface ReadingStatsProps {
-  savedBookIds: number[];
-  readingHistory: Record<number, ReadingProgress>;
+  savedBookIds: string[];
+  readingHistory: Record<string, ReadingProgress>;
 }
 
 export const ReadingStats = ({ savedBookIds, readingHistory }: ReadingStatsProps) => {
@@ -29,9 +29,13 @@ export const ReadingStats = ({ savedBookIds, readingHistory }: ReadingStatsProps
     const totalSaved = Array.isArray(savedBookIds) ? savedBookIds.length : 0;
     
     let pagesRead = 0;
+    let completedBooks = 0;
     Object.values(historyObj).forEach((progress) => {
       if (progress && typeof progress === 'object' && 'page' in progress) {
         pagesRead += (progress as any).page || 0;
+        if ((progress as any).page >= (progress as any).totalPages && (progress as any).totalPages > 0) {
+          completedBooks++;
+        }
       }
     });
 
@@ -39,13 +43,9 @@ export const ReadingStats = ({ savedBookIds, readingHistory }: ReadingStatsProps
       totalSaved,
       totalRead,
       pagesRead,
-      minutesRead: pagesRead * 3, // assuming 3 minutes per page
-      streak: 4 // mock streak days
+      completedBooks,
     };
   }, [savedBookIds, readingHistory]);
-
-  const dailyTarget = 20; // 20 mins daily target
-  const targetPercent = Math.min(100, Math.round((statsMetrics.minutesRead / dailyTarget) * 100));
 
   const achievements = useMemo(() => {
     return [
@@ -55,99 +55,78 @@ export const ReadingStats = ({ savedBookIds, readingHistory }: ReadingStatsProps
         desc: 'Membuka buku pertama Anda untuk mulai membaca',
         unlocked: statsMetrics.totalRead >= 1,
         icon: IconCircleCheck,
-        color: 'text-slate-600 bg-slate-50 border-slate-200/60'
       },
       {
-        id: 'habit_builder',
-        title: 'Pembaca Konsisten',
-        desc: 'Menyimpan dan mengoleksi minimal 3 buku favorit',
+        id: 'collector',
+        title: 'Kolektor Buku',
+        desc: 'Menyimpan minimal 3 buku ke bookmark',
         unlocked: statsMetrics.totalSaved >= 3,
         icon: IconAward,
-        color: 'text-slate-600 bg-slate-50 border-slate-200/60'
       },
       {
         id: 'bookworm',
-        title: 'Kutu Buku Unggul',
-        desc: 'Menyelesaikan total pembacaan 10 halaman buku',
+        title: 'Kutu Buku',
+        desc: 'Membaca total 10 halaman buku',
         unlocked: statsMetrics.pagesRead >= 10,
         icon: IconTrophy,
-        color: 'text-slate-600 bg-slate-50 border-slate-200/60'
-      }
+      },
+      {
+        id: 'finisher',
+        title: 'Penyelesai',
+        desc: 'Menyelesaikan membaca 1 buku sampai halaman terakhir',
+        unlocked: statsMetrics.completedBooks >= 1,
+        icon: IconTrophy,
+      },
     ];
-  }, [statsMetrics.totalRead, statsMetrics.totalSaved, statsMetrics.pagesRead]);
+  }, [statsMetrics]);
 
   return (
     <div className="flex flex-col gap-5">
       
-      {/* 1. Daily Progress Target Card */}
-      <div className="bg-gradient-to-br from-sky-600 to-sky-800 rounded-md p-5 text-white relative overflow-hidden">
-        <div className="absolute right-[-15px] bottom-[-15px] opacity-10 text-white pointer-events-none">
-          <IconClock size={110} />
-        </div>
-        <div className="relative z-10 flex flex-col">
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-sky-200">Target Hari Ini</span>
-          <h2 className="text-lg font-black mt-1 leading-none">
-            {statsMetrics.minutesRead} <span className="text-xs font-normal text-sky-200">/ {dailyTarget} menit</span>
-          </h2>
-          <p className="text-[10px] text-sky-100/80 mt-1 font-medium leading-relaxed">
-            Target waktu baca dirancang untuk membangun kebiasaan membaca harian yang konsisten.
-          </p>
-          
-          {/* Progress Bar */}
-          <div className="w-full h-2 bg-white/20 rounded-full mt-4 overflow-hidden">
-            <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${targetPercent}%` }} />
-          </div>
-          <div className="flex justify-between items-center mt-2.5 text-[9px] font-extrabold uppercase text-sky-100">
-            <span>{targetPercent}% Tercapai</span>
-            <span>{dailyTarget - statsMetrics.minutesRead > 0 ? `${dailyTarget - statsMetrics.minutesRead} m lagi` : 'Target tercapai! 🎉'}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Key Metrics Grid */}
+      {/* Key Metrics Grid */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-white border border-slate-200/80 rounded-md p-3.5 flex gap-3.5 items-center">
-          <div className="w-9 h-9 rounded-md bg-slate-50 text-slate-500 flex items-center justify-center shrink-0 border border-slate-200/50">
+          <div className="w-9 h-9 rounded-md bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 border border-sky-100">
             <IconBook size={18} />
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-black text-slate-800 leading-none">{statsMetrics.totalRead}</span>
-            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1 truncate">Buku Dibuka</span>
+            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1 truncate">Buku Dibaca</span>
           </div>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-md p-3.5 flex gap-3.5 items-center">
-          <div className="w-9 h-9 rounded-md bg-slate-50 text-slate-500 flex items-center justify-center shrink-0 border border-slate-200/50">
-            <IconFlame size={18} fill={statsMetrics.streak > 0 ? "currentColor" : "none"} />
+          <div className="w-9 h-9 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100">
+            <IconBookmark size={18} />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-sm font-black text-slate-800 leading-none">{statsMetrics.streak} Hari</span>
-            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1 truncate">Streak Baca</span>
+            <span className="text-sm font-black text-slate-800 leading-none">{statsMetrics.totalSaved}</span>
+            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1 truncate">Tersimpan</span>
           </div>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-md p-3.5 flex gap-3.5 items-center">
-          <div className="w-9 h-9 rounded-md bg-slate-50 text-slate-500 flex items-center justify-center shrink-0 border border-slate-200/50">
-            <IconClock size={18} />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-black text-slate-800 leading-none">{statsMetrics.minutesRead} m</span>
-            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1 truncate">Durasi Baca</span>
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-200/80 rounded-md p-3.5 flex gap-3.5 items-center">
-          <div className="w-9 h-9 rounded-md bg-slate-50 text-slate-500 flex items-center justify-center shrink-0 border border-slate-200/50">
-            <IconTrophy size={18} />
+          <div className="w-9 h-9 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+            <IconFileText size={18} />
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-black text-slate-800 leading-none">{statsMetrics.pagesRead} hal</span>
-            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1 truncate">Hal. Dibaca</span>
+            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1 truncate">Halaman Dibaca</span>
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200/80 rounded-md p-3.5 flex gap-3.5 items-center">
+          <div className="w-9 h-9 rounded-md bg-violet-50 text-violet-600 flex items-center justify-center shrink-0 border border-violet-100">
+            <IconTrophy size={18} />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-black text-slate-800 leading-none">{statsMetrics.completedBooks}</span>
+            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1 truncate">Buku Selesai</span>
           </div>
         </div>
       </div>
 
-      {/* 3. Achievements list */}
+      {/* Achievements list */}
       <div className="flex flex-col gap-2.5">
         <h3 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest leading-none m-0 px-1 mt-1">
           Lencana & Pencapaian
@@ -164,7 +143,7 @@ export const ReadingStats = ({ savedBookIds, readingHistory }: ReadingStatsProps
                 }`}
               >
                 <div className={`w-9 h-9 rounded-md flex items-center justify-center shrink-0 border ${
-                  item.unlocked ? item.color : 'text-slate-400 bg-slate-50 border-slate-200/50'
+                  item.unlocked ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-slate-400 bg-slate-50 border-slate-200/50'
                 }`}>
                   <Icon size={18} />
                 </div>

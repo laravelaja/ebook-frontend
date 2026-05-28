@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { IconBook, IconBell } from '@tabler/icons-react';
+import { IconBook } from '@tabler/icons-react';
 
 interface WelcomeHeaderProps {
   user: { name: string } | null;
@@ -33,12 +33,6 @@ export const WelcomeHeader = ({ user }: WelcomeHeaderProps) => {
           </span>
         </div>
       )}
-      
-      <div className="flex items-center gap-2">
-        <button className="w-9 h-9 rounded-md bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 cursor-pointer hover:bg-slate-100 transition-colors">
-          <IconBell size={18} />
-        </button>
-      </div>
     </motion.div>
   );
 };

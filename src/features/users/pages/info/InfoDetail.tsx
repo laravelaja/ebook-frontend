@@ -1,15 +1,23 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { IconArrowLeft, IconCalendar, IconBell } from '@tabler/icons-react';
-import { ANNOUNCEMENTS } from '../../../../data/EbookDummy';
+import { useAnnouncementById } from '../../../../hooks/useApiData';
 
 export const InfoDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const announcement = ANNOUNCEMENTS.find((ann) => ann.id === Number(id));
+  const { data: announcement, isLoading: loading, isError: error } = useAnnouncementById(id);
 
-  if (!announcement) {
+  if (loading) {
+    return (
+      <div className="min-h-full w-full flex items-center justify-center bg-white">
+        <div className="w-6 h-6 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error || !announcement) {
     return (
       <div className="min-h-full w-full flex flex-col items-center justify-center p-5 text-center text-slate-400 bg-white">
         <IconBell size={32} className="text-slate-300 mb-3" />
@@ -29,7 +37,7 @@ export const InfoDetail = () => {
       {/* Hero Image area */}
       <div className="relative w-full aspect-[16/9] bg-slate-100 border-b border-slate-200">
         <img
-          src={announcement.image}
+          src={announcement.image_url || announcement.image}
           alt={announcement.title}
           className="w-full h-full object-cover"
         />

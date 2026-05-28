@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   IconMail, 
@@ -9,12 +9,16 @@ import {
   IconEdit, 
   IconCheck, 
   IconX,
-  IconShieldCheck
+  IconShieldCheck,
+  IconCamera
 } from '@tabler/icons-react';
 import { LogoutModal } from '../../components/modal/Logout';
+import { usersApi } from '../../../../api/users';
+import { uploadApi } from '../../../../api/upload';
 
 export const Profile = () => {
   const navigate = useNavigate();
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   
   const [user, setUser] = useState<any>(null);
   const [isEditingBio, setIsEditingBio] = useState(false);
@@ -68,29 +72,44 @@ export const Profile = () => {
     }
   }, [navigate]);
 
-  const handleSaveBio = () => {
+  const handleSaveBio = async () => {
     if (!user) return;
     
-    const updatedUser = { ...user, bio: newBio };
-    setUser(updatedUser);
-    localStorage.setItem('logged_in_user', JSON.stringify(updatedUser));
-
-    // Also update in users database
-    const dbStr = localStorage.getItem('users_db');
-    if (dbStr) {
-      try {
-        const users = JSON.parse(dbStr);
-        const updatedUsers = users.map((u: any) => {
-          if (u.email === user.email) {
-            return { ...u, bio: newBio };
-          }
-          return u;
-        });
-        localStorage.setItem('users_db', JSON.stringify(updatedUsers));
-      } catch (e) {}
+    try {
+      const updatedUser = await usersApi.updateProfile({ bio: newBio });
+      const sessionUser = { ...user, bio: newBio };
+      setUser(sessionUser);
+      localStorage.setItem('logged_in_user', JSON.stringify(sessionUser));
+    } catch (e) {
+      // Fallback to local
+      const sessionUser = { ...user, bio: newBio };
+      setUser(sessionUser);
+      localStorage.setItem('logged_in_user', JSON.stringify(sessionUser));
     }
 
     setIsEditingBio(false);
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('File harus berupa gambar.');
+      return;
+    }
+
+    try {
+      const avatarUrl = await uploadApi.uploadImage(file);
+      await usersApi.updateProfile({ avatar_url: avatarUrl });
+      const updatedUser = { ...user, avatar_url: avatarUrl };
+      setUser(updatedUser);
+      localStorage.setItem('logged_in_user', JSON.stringify(updatedUser));
+    } catch (err) {
+      alert('Gagal mengupload foto profil.');
+    }
+
+    e.target.value = '';
   };
 
   const handleLogout = () => {
@@ -106,9 +125,18 @@ export const Profile = () => {
       {/* 1. Header Profile Container */}
       <div className="bg-white border-b border-slate-200 px-5 pt-8 pb-6 flex flex-col items-center text-center shrink-0">
         
-        {/* Avatar Profile */}
-        <div className="w-20 h-20 rounded-full overflow-hidden bg-slate-100 border-2 border-slate-200">
-          <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+        {/* Hidden file input for avatar */}
+        <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+
+        {/* Avatar Profile - clickable to change */}
+        <div 
+          className="relative w-20 h-20 rounded-full overflow-hidden bg-slate-100 border-2 border-slate-200 cursor-pointer group"
+          onClick={() => avatarInputRef.current?.click()}
+        >
+          <img src={user.avatar_url || user.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name)} alt={user.name} className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <IconCamera size={18} className="text-white" />
+          </div>
         </div>
 
         {/* User Info */}

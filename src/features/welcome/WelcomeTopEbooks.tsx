@@ -1,10 +1,15 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { getAllEbooks } from '../../utils/ebookStore';
 
-export const WelcomeTopEbooks = () => {
+interface WelcomeTopEbooksProps {
+  ebooks: any[];
+}
+
+export const WelcomeTopEbooks = ({ ebooks }: WelcomeTopEbooksProps) => {
   const navigate = useNavigate();
-  const ebooks = getAllEbooks().slice(0, 6);
+  const displayEbooks = ebooks.slice(0, 6);
+
+  if (displayEbooks.length === 0) return null;
 
   return (
     <motion.div
@@ -24,7 +29,7 @@ export const WelcomeTopEbooks = () => {
       </div>
       
       <div className="grid grid-cols-3 gap-4">
-        {ebooks.map((book) => (
+        {displayEbooks.map((book) => (
           <div 
             key={book.id} 
             onClick={() => navigate(`/ebooks/${book.id}`)}
@@ -32,7 +37,7 @@ export const WelcomeTopEbooks = () => {
           >
             <div className="aspect-[148/210] w-full rounded-md overflow-hidden bg-slate-100 relative transition-transform duration-300 group-hover:-translate-y-1">
               <img 
-                src={book.cover} 
+                src={book.cover_url || book.cover} 
                 alt={book.title} 
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
               />

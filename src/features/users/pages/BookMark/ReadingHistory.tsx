@@ -11,10 +11,11 @@ interface ReadingProgress {
 
 interface HistoryBookItem {
   book: {
-    id: number;
+    id: string;
     title: string;
     author: string;
     cover: string;
+    cover_url?: string;
     category: string;
     rating: number;
   };
@@ -80,7 +81,7 @@ export const ReadingHistory = ({ historyBooks }: ReadingHistoryProps) => {
               >
                 {/* Cover */}
                 <div className="w-12 aspect-[148/210] rounded-md overflow-hidden bg-slate-100 shrink-0">
-                  <img src={book.cover} alt={book.title} className="w-full h-full object-cover" />
+                  <img src={book.cover_url || book.cover} alt={book.title} className="w-full h-full object-cover" />
                 </div>
 
                 {/* Progress and Details */}

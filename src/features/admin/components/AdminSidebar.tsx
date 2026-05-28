@@ -8,10 +8,12 @@ import {
   IconSpeakerphone,
   IconArrowLeft,
   IconShieldCheck,
+  IconStar,
 } from '@tabler/icons-react';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', path: '/admin', icon: IconDashboard },
+  { label: 'Ebook Teratas', path: '/admin/featured', icon: IconStar },
   { label: 'Manajemen User', path: '/admin/users', icon: IconUsers },
   { label: 'Manajemen Buku', path: '/admin/books', icon: IconBook },
   { label: 'Carousel/Banner', path: '/admin/carousel', icon: IconPhoto },

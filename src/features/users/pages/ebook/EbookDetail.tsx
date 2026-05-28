@@ -2,20 +2,20 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { IconArrowLeft, IconBookmark } from '@tabler/icons-react';
-import { getEbookById } from '../../../../utils/ebookStore';
+import { useEbookById } from '../../../../hooks/useApiData';
 
 export const EbookDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const book = getEbookById(Number(id));
+  const { data: book, isLoading: loading, isError: error } = useEbookById(id);
 
   const [isBookmarked, setIsBookmarked] = useState(() => {
     const saved = localStorage.getItem('saved_ebooks');
     if (!saved) return false;
     try {
       const parsed = JSON.parse(saved);
-      return Array.isArray(parsed) && parsed.map(Number).includes(Number(id));
+      return Array.isArray(parsed) && parsed.map(String).includes(String(id));
     } catch {
       return false;
     }
@@ -23,7 +23,7 @@ export const EbookDetail = () => {
 
   const toggleBookmark = () => {
     const saved = localStorage.getItem('saved_ebooks');
-    let list: number[] = [];
+    let list: string[] = [];
     try {
       list = saved ? JSON.parse(saved) : [];
       if (!Array.isArray(list)) list = [];
@@ -31,17 +31,26 @@ export const EbookDetail = () => {
       list = [];
     }
     
-    if (list.includes(Number(id))) {
-      list = list.filter((bookId) => bookId !== Number(id));
+    const bookId = String(id);
+    if (list.includes(bookId)) {
+      list = list.filter((bid) => bid !== bookId);
       setIsBookmarked(false);
     } else {
-      list.push(Number(id));
+      list.push(bookId);
       setIsBookmarked(true);
     }
     localStorage.setItem('saved_ebooks', JSON.stringify(list));
   };
 
-  if (!book) {
+  if (loading) {
+    return (
+      <div className="min-h-full w-full flex items-center justify-center bg-white">
+        <div className="w-6 h-6 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error || !book) {
     return (
       <div className="min-h-full w-full flex flex-col items-center justify-center p-5 text-center bg-white text-slate-800">
         <h3 className="text-lg font-bold">Ebook tidak ditemukan</h3>
@@ -55,8 +64,11 @@ export const EbookDetail = () => {
     );
   }
 
-  // Fallback synopsis based on title
-  const synopsis = `Buku "${book.title}" karya ${book.author} adalah salah satu karya terbaik di kategori ${book.category}. Buku ini menawarkan pandangan mendalam, analisis praktis, serta inspirasi berharga yang dapat langsung diterapkan dalam kehidupan sehari-hari. Cocok bagi pembaca yang ingin memperluas cakrawala berpikir dan meningkatkan kapasitas diri di bidang ini.`;
+  const cover = book.cover_url || book.cover;
+  const author = book.author_name || book.author || 'Anonim';
+  const category = book.category || '';
+  const pageCount = book.ebook_pages?.length || book.pages?.length || 0;
+  const synopsis = book.synopsis || '';
 
   return (
     <div className="min-h-full w-full flex flex-col bg-white text-slate-800 relative">
@@ -91,7 +103,7 @@ export const EbookDetail = () => {
           className="w-40 mx-auto mt-4 aspect-[148/210] rounded-md overflow-hidden bg-slate-100 relative"
         >
           <img 
-            src={book.cover} 
+            src={cover} 
             alt={book.title} 
             className="w-full h-full object-cover"
           />
@@ -105,13 +117,13 @@ export const EbookDetail = () => {
           className="text-center mt-6 flex flex-col gap-1.5"
         >
           <span className="px-2.5 py-0.5 self-center rounded-lg bg-sky-50 text-sky-700 text-[9px] font-extrabold uppercase tracking-wider border border-sky-100/50">
-            {book.category}
+            {category}
           </span>
           <h2 className="text-lg font-black tracking-tight text-slate-800 leading-snug m-0 px-2">
             {book.title}
           </h2>
           <p className="text-xs text-slate-500 font-semibold m-0">
-            Oleh {book.author}
+            Oleh {author}
           </p>
         </motion.div>
 
@@ -120,27 +132,19 @@ export const EbookDetail = () => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.4 }}
-          className="grid grid-cols-4 gap-2 bg-slate-50 border border-slate-200/60 rounded-xl p-3.5 mt-6"
+          className="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-200/60 rounded-xl p-3.5 mt-6"
         >
           <div className="flex flex-col items-center gap-1 text-center">
-            {/* <IconStar size={16} className="text-amber-500" fill="currentColor" /> */}
-            <span className="text-[11px] font-bold text-slate-800 leading-none mt-0.5">{book.rating}</span>
-            <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Rating</span>
-          </div>
-          <div className="flex flex-col items-center gap-1 text-center border-l border-slate-200">
-            {/* <IconEye size={16} className="text-sky-600" /> */}
-            <span className="text-[11px] font-bold text-slate-800 leading-none mt-0.5">{book.views}</span>
+            <span className="text-[11px] font-bold text-slate-800 leading-none mt-0.5">{book.views || 0}</span>
             <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Dilihat</span>
           </div>
           <div className="flex flex-col items-center gap-1 text-center border-l border-slate-200">
-            {/* <IconBook size={16} className="text-emerald-600" /> */}
-            <span className="text-[11px] font-bold text-slate-800 leading-none mt-0.5">280 p.</span>
+            <span className="text-[11px] font-bold text-slate-800 leading-none mt-0.5">{pageCount}</span>
             <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Halaman</span>
           </div>
           <div className="flex flex-col items-center gap-1 text-center border-l border-slate-200">
-            {/* <IconWorld size={16} className="text-indigo-600" /> */}
-            <span className="text-[11px] font-bold text-slate-800 leading-none mt-0.5">IDN</span>
-            <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Bahasa</span>
+            <span className="text-[11px] font-bold text-slate-800 leading-none mt-0.5">{category}</span>
+            <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Kategori</span>
           </div>
         </motion.div>
 
@@ -151,10 +155,16 @@ export const EbookDetail = () => {
           transition={{ delay: 0.3, duration: 0.4 }}
           className="mt-6 flex flex-col gap-2.5"
         >
-          <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest m-0">Sinopsis</h3>
-          <p className="text-xs text-justify leading-relaxed m-0 font-medium">
-            {synopsis}
-          </p>
+          {synopsis ? (
+            <>
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest m-0">Sinopsis</h3>
+              <p className="text-xs text-justify leading-relaxed m-0 font-medium text-slate-600">
+                {synopsis}
+              </p>
+            </>
+          ) : (
+            <p className="text-xs text-slate-400 italic m-0 text-center py-4">Belum ada sinopsis untuk buku ini.</p>
+          )}
         </motion.div>
       </div>
 

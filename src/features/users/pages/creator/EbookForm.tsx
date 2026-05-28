@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { IconArrowLeft, IconBook, IconCamera, IconPhoto, IconTrash } from '@tabler/icons-react';
-import { CATEGORIES } from '../../../../data/EbookDummy';
-import { getEbookById, saveEbook } from '../../../../utils/ebookStore';
+import { ebooksApi } from '../../../../api/ebooks';
+import { uploadApi } from '../../../../api/upload';
+import { useEbookById, useCategories } from '../../../../hooks/useApiData';
 
 export const EbookForm = () => {
   const { id } = useParams();
@@ -14,36 +15,42 @@ export const EbookForm = () => {
   const [title, setTitle] = useState('');
   const [synopsis, setSynopsis] = useState('');
   const [cover, setCover] = useState('');
-  const [category, setCategory] = useState(CATEGORIES[1] || 'Pengembangan Diri');
-  const [author, setAuthor] = useState('');
+  const [category, setCategory] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
-  // Fetch data if editing
+  // Fetch categories
+  const { data: categoriesData = [], isLoading: loadingCategories } = useCategories();
+  const categories = categoriesData.map((c: any) => c.name || c);
+
+  // Fetch book data if editing
+  const { data: bookData, isLoading: loadingBook } = useEbookById(isEdit ? id : undefined);
+
+  const loading = loadingCategories || (isEdit && loadingBook);
+
+  // Initialize form with fetched data
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    let currentUserName = 'Ahmad';
-    if (savedUser) {
-      try {
-        const parsed = JSON.parse(savedUser);
-        if (parsed.name) currentUserName = parsed.name;
-      } catch {}
-    }
-    setAuthor(currentUserName);
+    if (initialized) return;
+    if (loadingCategories) return;
 
-    if (isEdit) {
-      const book = getEbookById(Number(id));
-      if (book) {
-        setTitle(book.title);
-        setSynopsis(book.synopsis || '');
-        setCover(book.cover);
-        setCategory(book.category);
-      } else {
-        navigate('/creator');
-      }
+    if (isEdit && bookData) {
+      setTitle(bookData.title);
+      setSynopsis(bookData.synopsis || '');
+      setCover(bookData.cover_url || bookData.cover || '');
+      setCategory(bookData.category_name || bookData.category || categories[0] || '');
+      setInitialized(true);
+    } else if (isEdit && !loadingBook && !bookData) {
+      // Book not found
+      navigate('/creator');
+    } else if (!isEdit && categories.length > 0) {
+      if (!category) setCategory(categories[0]);
+      setInitialized(true);
     }
-  }, [id, isEdit, navigate]);
+  }, [isEdit, bookData, loadingBook, loadingCategories, categories, initialized, navigate, category]);
 
   // Handle cover image upload from device
-  const handleCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -57,42 +64,61 @@ export const EbookForm = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setCover(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+    setUploading(true);
+    try {
+      const url = await uploadApi.uploadImage(file);
+      setCover(url);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Gagal mengunggah gambar. Silakan coba lagi.');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
   };
 
   const handleRemoveCover = () => {
     setCover('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
       alert('Judul Ebook tidak boleh kosong.');
       return;
     }
 
-    const payload = {
-      title,
-      synopsis,
-      cover: cover.trim() || undefined,
-      category,
-      author,
-      ...(isEdit ? { id: Number(id) } : {}),
-    };
+    setSubmitting(true);
+    try {
+      const payload = {
+        title,
+        synopsis,
+        cover_url: cover.trim() || undefined,
+        category,
+      };
 
-    const saved = saveEbook(payload);
-    
-    if (isEdit) {
-      navigate('/creator');
-    } else {
-      navigate(`/creator/write/${saved.id}`);
+      if (isEdit && id) {
+        await ebooksApi.update(id, payload);
+        navigate('/creator');
+      } else {
+        const saved = await ebooksApi.create(payload);
+        navigate(`/creator/write/${saved.id}`);
+      }
+    } catch (error) {
+      console.error('Error saving ebook:', error);
+      alert('Gagal menyimpan ebook. Silakan coba lagi.');
+    } finally {
+      setSubmitting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-full w-full flex items-center justify-center bg-white">
+        <div className="w-6 h-6 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full w-full flex flex-col bg-white">
@@ -156,11 +182,17 @@ export const EbookForm = () => {
             </div>
           ) : (
             <div
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => !uploading && fileInputRef.current?.click()}
               className="w-24 h-34 shrink-0 bg-slate-50 rounded-lg border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 cursor-pointer hover:border-sky-400 hover:text-sky-500 transition-all"
             >
-              <IconCamera size={22} />
-              <span className="text-[8px] font-bold uppercase mt-1">Cover</span>
+              {uploading ? (
+                <div className="w-5 h-5 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <IconCamera size={22} />
+                  <span className="text-[8px] font-bold uppercase mt-1">Cover</span>
+                </>
+              )}
             </div>
           )}
 
@@ -171,11 +203,12 @@ export const EbookForm = () => {
             </p>
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="self-start h-8 px-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-lg cursor-pointer border-none flex items-center gap-1.5 transition-colors"
+              onClick={() => !uploading && fileInputRef.current?.click()}
+              disabled={uploading}
+              className="self-start h-8 px-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-lg cursor-pointer border-none flex items-center gap-1.5 transition-colors disabled:opacity-50"
             >
               <IconPhoto size={13} />
-              <span>{cover ? 'Ganti' : 'Pilih Gambar'}</span>
+              <span>{uploading ? 'Mengunggah...' : cover ? 'Ganti' : 'Pilih Gambar'}</span>
             </button>
           </div>
         </div>
@@ -201,7 +234,7 @@ export const EbookForm = () => {
             onChange={(e) => setCategory(e.target.value)}
             className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-300 text-sm font-semibold text-slate-700 bg-white cursor-pointer"
           >
-            {CATEGORIES.filter((c) => c !== 'Semua').map((cat) => (
+            {categories.map((cat: string) => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
@@ -222,10 +255,11 @@ export const EbookForm = () => {
         {/* Submit */}
         <button
           type="submit"
-          className="w-full h-11 mt-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold rounded-xl cursor-pointer border-none flex items-center justify-center gap-2 transition-colors"
+          disabled={submitting}
+          className="w-full h-11 mt-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold rounded-xl cursor-pointer border-none flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
         >
           <IconBook size={16} />
-          <span>{isEdit ? 'Simpan Perubahan' : 'Mulai Tulis Isi'}</span>
+          <span>{submitting ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Mulai Tulis Isi'}</span>
         </button>
       </motion.form>
     </div>

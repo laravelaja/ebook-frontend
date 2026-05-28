@@ -6,8 +6,7 @@ import {
   IconStar, 
   IconTrash
 } from '@tabler/icons-react';
-import type { Ebook } from '../../../../data/EbookDummy';
-import { getAllEbooks, getEbookById } from '../../../../utils/ebookStore';
+import { useEbooks } from '../../../../hooks/useApiData';
 import { SearchInput } from '../../components/SearchInput';
 import { Chategory } from '../../components/Chategory';
 import { BookmarkTabs } from '../../components/BookmarkTabs';
@@ -31,67 +30,59 @@ export const SaveList = () => {
 
   // Modal delete validation states
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [bookToDelete, setBookToDelete] = useState<number | null>(null);
+  const [bookToDelete, setBookToDelete] = useState<string | null>(null);
 
   // State for dynamic items from localStorage
-  const [savedBookIds, setSavedBookIds] = useState<number[]>([]);
-  const [readingHistory, setReadingHistory] = useState<Record<number, ReadingProgress>>({});
+  const [savedBookIds, setSavedBookIds] = useState<string[]>([]);
+  const [readingHistory, setReadingHistory] = useState<Record<string, ReadingProgress>>({});
+
+  // Fetch all books from API using react-query
+  const { data: allBooks = [] } = useEbooks();
 
   // Load localStorage data
   useEffect(() => {
-    const loadData = () => {
-      // Load saved books
+    const loadLocalData = () => {
+      // Load saved book IDs from localStorage
       const saved = localStorage.getItem('saved_ebooks');
-      let parsedSaved: number[] = [1, 3]; // defaults
+      let parsedSaved: string[] = [];
       if (saved) {
         try {
           const val = JSON.parse(saved);
           if (Array.isArray(val)) {
-            parsedSaved = val.map(Number).filter((n) => !isNaN(n));
+            parsedSaved = val.map(String);
           }
-        } catch (e) {
-          console.error("Failed to parse saved_ebooks:", e);
-        }
-      } else {
-        localStorage.setItem('saved_ebooks', JSON.stringify(parsedSaved));
+        } catch (e) {}
       }
       setSavedBookIds(parsedSaved);
 
-      // Load reading history
+      // Load reading history from localStorage
       const history = localStorage.getItem('reading_history');
-      let parsedHistory: Record<number, ReadingProgress> = {
-        1: { page: 1, totalPages: 3, updatedAt: new Date().toISOString() }
-      };
+      let parsedHistory: Record<string, ReadingProgress> = {};
       if (history) {
         try {
           const val = JSON.parse(history);
           if (val && typeof val === 'object' && !Array.isArray(val)) {
             parsedHistory = val;
           }
-        } catch (e) {
-          console.error("Failed to parse reading_history:", e);
-        }
-      } else {
-        localStorage.setItem('reading_history', JSON.stringify(parsedHistory));
+        } catch (e) {}
       }
       setReadingHistory(parsedHistory);
     };
 
-    loadData();
-    window.addEventListener('storage', loadData);
-    return () => window.removeEventListener('storage', loadData);
+    loadLocalData();
+    window.addEventListener('storage', loadLocalData);
+    return () => window.removeEventListener('storage', loadLocalData);
   }, []);
 
   // Filter bookmarked books
   const savedBooks = useMemo(() => {
-    const ids = Array.isArray(savedBookIds) ? savedBookIds : [];
-    return getAllEbooks().filter((book) => ids.includes(book.id));
-  }, [savedBookIds]);
+    return allBooks.filter((book: any) => savedBookIds.includes(String(book.id)));
+  }, [savedBookIds, allBooks]);
 
   // Categories in bookmarked books
   const categories = useMemo(() => {
     const cats = ['Semua'];
-    savedBooks.forEach((book) => {
+    savedBooks.forEach((book: any) => {
       if (!cats.includes(book.category)) {
         cats.push(book.category);
       }
@@ -102,13 +93,13 @@ export const SaveList = () => {
   // Lookup target book title for delete confirmation
   const targetBookTitle = useMemo(() => {
     if (bookToDelete === null) return '';
-    const found = savedBooks.find((b) => b.id === bookToDelete);
+    const found = savedBooks.find((b: any) => String(b.id) === String(bookToDelete));
     return found ? found.title : '';
   }, [bookToDelete, savedBooks]);
 
   // Filtered bookmarked list
   const filteredSavedBooks = useMemo(() => {
-    return savedBooks.filter((book) => {
+    return savedBooks.filter((book: any) => {
       const matchesSearch = book.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             book.author.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = selectedCategory === 'Semua' || book.category === selectedCategory;
@@ -123,19 +114,18 @@ export const SaveList = () => {
       : {};
     return Object.entries(historyObj)
       .map(([idStr, progress]) => {
-        const book = getEbookById(Number(idStr));
+        const book = allBooks.find((b: any) => String(b.id) === idStr);
         return {
           book,
           progress: progress as ReadingProgress
         };
       })
-      .filter((item): item is { book: Ebook; progress: ReadingProgress } => !!item.book && !!item.progress)
+      .filter((item): item is { book: any; progress: ReadingProgress } => !!item.book && !!item.progress)
       .sort((a, b) => new Date(b.progress.updatedAt).getTime() - new Date(a.progress.updatedAt).getTime());
-  }, [readingHistory]);
+  }, [readingHistory, allBooks]);
 
-  const removeBookmark = (id: number) => {
-    const ids = Array.isArray(savedBookIds) ? savedBookIds : [];
-    const newList = ids.filter((bookId) => bookId !== id);
+  const removeBookmark = (id: string) => {
+    const newList = savedBookIds.filter((bookId) => bookId !== id);
     setSavedBookIds(newList);
     localStorage.setItem('saved_ebooks', JSON.stringify(newList));
   };
@@ -193,7 +183,7 @@ export const SaveList = () => {
               {/* Saved Books List */}
               {filteredSavedBooks.length > 0 ? (
                 <div className="flex flex-col gap-3">
-                  {filteredSavedBooks.map((book) => (
+                  {filteredSavedBooks.map((book: any) => (
                     <div
                       key={book.id}
                       onClick={() => navigate(`/ebooks/${book.id}`)}
@@ -201,7 +191,7 @@ export const SaveList = () => {
                     >
                       {/* Cover */}
                       <div className="w-14 aspect-[148/210] rounded-md overflow-hidden bg-slate-100 shrink-0">
-                        <img src={book.cover} alt={book.title} className="w-full h-full object-cover" />
+                        <img src={book.cover_url || book.cover} alt={book.title} className="w-full h-full object-cover" />
                       </div>
 
                       {/* Info */}

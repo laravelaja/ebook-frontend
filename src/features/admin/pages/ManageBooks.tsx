@@ -1,29 +1,49 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { IconSearch, IconTrash, IconEye, IconBook, IconX } from '@tabler/icons-react';
-import { getAllEbooks, deleteEbook } from '../../../utils/ebookStore';
-import type { Ebook } from '../../../data/EbookDummy';
+import { ebooksApi } from '../../../api/ebooks';
+import { useEbooks } from '../../../hooks/useApiData';
+
+interface EbookPage {
+  chapter?: string;
+}
+
+interface Ebook {
+  id: string;
+  title: string;
+  author: string;
+  cover: string;
+  cover_url?: string;
+  category: string;
+  rating: number;
+  views: number;
+  synopsis?: string;
+  pages?: EbookPage[];
+}
 
 export const ManageBooks = () => {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
-  const [books, setBooks] = useState<Ebook[]>([]);
   const [viewBook, setViewBook] = useState<Ebook | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Ebook | null>(null);
 
-  useEffect(() => {
-    setBooks(getAllEbooks());
-  }, []);
+  const { data: books = [] } = useEbooks();
 
   const filteredBooks = books.filter(
-    (b) =>
+    (b: any) =>
       b.title.toLowerCase().includes(search.toLowerCase()) ||
       b.author.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteTarget) return;
-    deleteEbook(deleteTarget.id);
-    setBooks(getAllEbooks());
-    setDeleteTarget(null);
+    try {
+      await ebooksApi.delete(deleteTarget.id);
+      setDeleteTarget(null);
+      queryClient.invalidateQueries({ queryKey: ['ebooks'] });
+    } catch (err) {
+      alert('Gagal menghapus buku');
+    }
   };
 
   return (
@@ -69,10 +89,10 @@ export const ManageBooks = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredBooks.map((book) => (
+            {filteredBooks.map((book: any) => (
               <tr key={book.id} className="border-b border-slate-100 last:border-none hover:bg-slate-50/50 transition-colors">
                 <td className="px-5 py-3">
-                  <img src={book.cover} alt={book.title} className="w-8 h-11 object-cover rounded border border-slate-200" />
+                  <img src={book.cover_url || book.cover} alt={book.title} className="w-8 h-11 object-cover rounded border border-slate-200" />
                 </td>
                 <td className="px-5 py-3 text-sm font-semibold text-slate-800 max-w-[200px] truncate">{book.title}</td>
                 <td className="px-5 py-3 text-sm text-slate-600">{book.author}</td>
@@ -123,7 +143,7 @@ export const ManageBooks = () => {
               </button>
             </div>
             <div className="flex gap-4">
-              <img src={viewBook.cover} alt={viewBook.title} className="w-24 h-36 object-cover rounded-lg border border-slate-200 shrink-0" />
+              <img src={viewBook.cover_url || viewBook.cover} alt={viewBook.title} className="w-24 h-36 object-cover rounded-lg border border-slate-200 shrink-0" />
               <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-bold text-slate-800 m-0">{viewBook.title}</h4>
                 <p className="text-xs text-slate-500 mt-1 m-0">oleh {viewBook.author}</p>

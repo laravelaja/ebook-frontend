@@ -1,63 +1,81 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { IconPlus, IconTrash, IconEdit, IconCheck, IconX, IconGripVertical } from '@tabler/icons-react';
-import { getAllCategories, addCategory, updateCategory, deleteCategory } from '../../../utils/categoryStore';
+import { categoriesApi } from '../../../api/categories';
+import { useCategories } from '../../../hooks/useApiData';
+
+interface Category {
+  id: string;
+  name: string;
+  order: number;
+}
 
 export const ManageCategories = () => {
-  const [categories, setCategories] = useState<string[]>([]);
+  const queryClient = useQueryClient();
   const [newCategory, setNewCategory] = useState('');
-  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
-  const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
 
-  useEffect(() => {
-    setCategories(getAllCategories());
-  }, []);
+  const { data: categories = [] } = useCategories();
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newCategory.trim()) {
       alert('Nama kategori tidak boleh kosong!');
       return;
     }
-    if (categories.includes(newCategory.trim())) {
+    if (categories.some((c: any) => c.name === newCategory.trim())) {
       alert('Kategori sudah ada!');
       return;
     }
-    const updated = addCategory(newCategory.trim());
-    setCategories(updated);
-    setNewCategory('');
+    try {
+      await categoriesApi.create(newCategory.trim(), categories.length);
+      setNewCategory('');
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    } catch (err) {
+      alert('Gagal menambah kategori');
+    }
   };
 
-  const startEdit = (idx: number) => {
-    setEditIdx(idx);
-    setEditValue(categories[idx]);
+  const startEdit = (cat: Category) => {
+    setEditId(cat.id);
+    setEditValue(cat.name);
   };
 
   const cancelEdit = () => {
-    setEditIdx(null);
+    setEditId(null);
     setEditValue('');
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editValue.trim()) {
       alert('Nama kategori tidak boleh kosong!');
       return;
     }
-    if (editIdx === null) return;
-    const updated = updateCategory(editIdx, editValue.trim());
-    setCategories(updated);
-    setEditIdx(null);
-    setEditValue('');
+    if (editId === null) return;
+    try {
+      await categoriesApi.update(editId, editValue.trim());
+      setEditId(null);
+      setEditValue('');
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    } catch (err) {
+      alert('Gagal mengupdate kategori');
+    }
   };
 
-  const confirmDelete = (idx: number) => {
-    setDeleteIdx(idx);
+  const confirmDelete = (cat: Category) => {
+    setDeleteTarget(cat);
   };
 
-  const handleDelete = () => {
-    if (deleteIdx === null) return;
-    const updated = deleteCategory(deleteIdx);
-    setCategories(updated);
-    setDeleteIdx(null);
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await categoriesApi.delete(deleteTarget.id);
+      setDeleteTarget(null);
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    } catch (err) {
+      alert('Gagal menghapus kategori');
+    }
   };
 
   return (
@@ -94,10 +112,10 @@ export const ManageCategories = () => {
 
       {/* Category List */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden max-w-lg">
-        {categories.map((cat, idx) => (
-          <div key={idx} className="flex items-center gap-3 px-5 py-3.5 border-b border-slate-100 last:border-none hover:bg-slate-50/50 transition-colors">
+        {categories.map((cat: any, idx: number) => (
+          <div key={cat.id} className="flex items-center gap-3 px-5 py-3.5 border-b border-slate-100 last:border-none hover:bg-slate-50/50 transition-colors">
             <IconGripVertical size={14} className="text-slate-300" />
-            {editIdx === idx ? (
+            {editId === cat.id ? (
               <input
                 type="text"
                 value={editValue}
@@ -110,11 +128,11 @@ export const ManageCategories = () => {
                 className="flex-1 px-2 py-1 border border-sky-300 rounded text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-200"
               />
             ) : (
-              <span className="flex-1 text-sm font-semibold text-slate-700">{cat}</span>
+              <span className="flex-1 text-sm font-semibold text-slate-700">{cat.name}</span>
             )}
             <span className="text-[10px] text-slate-400 font-medium">#{idx + 1}</span>
             <div className="flex items-center gap-1.5">
-              {editIdx === idx ? (
+              {editId === cat.id ? (
                 <>
                   <button
                     onClick={saveEdit}
@@ -134,14 +152,14 @@ export const ManageCategories = () => {
               ) : (
                 <>
                   <button
-                    onClick={() => startEdit(idx)}
+                    onClick={() => startEdit(cat)}
                     className="w-7 h-7 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer border-none transition-colors"
                     title="Edit"
                   >
                     <IconEdit size={13} />
                   </button>
                   <button
-                    onClick={() => confirmDelete(idx)}
+                    onClick={() => confirmDelete(cat)}
                     className="w-7 h-7 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center cursor-pointer border-none transition-colors"
                     title="Hapus"
                   >
@@ -160,16 +178,16 @@ export const ManageCategories = () => {
       </div>
 
       {/* Delete Confirmation Dialog */}
-      {deleteIdx !== null && (
+      {deleteTarget !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
             <h3 className="text-base font-bold text-slate-800 m-0 mb-2">Konfirmasi Hapus</h3>
             <p className="text-sm text-slate-600 m-0">
-              Apakah Anda yakin ingin menghapus kategori <strong>"{categories[deleteIdx]}"</strong>? Tindakan ini tidak dapat dibatalkan.
+              Apakah Anda yakin ingin menghapus kategori <strong>"{deleteTarget.name}"</strong>? Tindakan ini tidak dapat dibatalkan.
             </p>
             <div className="flex justify-end gap-2 mt-5">
               <button
-                onClick={() => setDeleteIdx(null)}
+                onClick={() => setDeleteTarget(null)}
                 className="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer border-none transition-colors"
               >
                 Batal

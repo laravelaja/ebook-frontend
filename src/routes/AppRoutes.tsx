@@ -23,6 +23,7 @@ import { ManageBooks } from '../features/admin/pages/ManageBooks';
 import { ManageCarousel } from '../features/admin/pages/ManageCarousel';
 import { ManageCategories } from '../features/admin/pages/ManageCategories';
 import { ManageAnnouncements } from '../features/admin/pages/ManageAnnouncements';
+import { ManageFeatured } from '../features/admin/pages/ManageFeatured';
 
 // Route Guard to verify user session
 const ProfileGuard = () => {
@@ -75,6 +76,7 @@ export const AppRoutes = () => {
         <Route path="carousel" element={<ManageCarousel />} />
         <Route path="categories" element={<ManageCategories />} />
         <Route path="announcements" element={<ManageAnnouncements />} />
+        <Route path="featured" element={<ManageFeatured />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

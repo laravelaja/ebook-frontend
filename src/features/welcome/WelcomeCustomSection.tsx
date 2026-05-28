@@ -2,45 +2,56 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { IconCalendar, IconChevronRight } from '@tabler/icons-react';
-import { ANNOUNCEMENTS } from '../../data/EbookDummy';
-import { getEbookById } from '../../utils/ebookStore';
+import { ebooksApi } from '../../api/ebooks';
 
-export const WelcomeCustomSection = () => {
+interface WelcomeCustomSectionProps {
+  announcements: any[];
+}
+
+export const WelcomeCustomSection = ({ announcements }: WelcomeCustomSectionProps) => {
   const navigate = useNavigate();
   const [lastReadBook, setLastReadBook] = useState<any>(null);
 
   useEffect(() => {
-    const historyStr = localStorage.getItem('reading_history');
-    if (!historyStr) return;
+    const loadLastRead = async () => {
+      const historyStr = localStorage.getItem('reading_history');
+      if (!historyStr) return;
 
-    try {
-      const history = JSON.parse(historyStr);
-      if (history && typeof history === 'object' && !Array.isArray(history)) {
-        const entries = Object.entries(history);
-        if (entries.length === 0) return;
+      try {
+        const history = JSON.parse(historyStr);
+        if (history && typeof history === 'object' && !Array.isArray(history)) {
+          const entries = Object.entries(history);
+          if (entries.length === 0) return;
 
-        const sorted = entries.sort((a: any, b: any) => {
-          const timeA = new Date(a[1].updatedAt).getTime();
-          const timeB = new Date(b[1].updatedAt).getTime();
-          return timeB - timeA;
-        });
-
-        const latestEntry = sorted[0];
-        const bookId = parseInt(latestEntry[0]);
-        const progress = latestEntry[1] as any;
-
-        const ebookDetail = getEbookById(bookId);
-        if (ebookDetail) {
-          setLastReadBook({
-            ...ebookDetail,
-            page: progress.page,
-            totalPages: progress.totalPages || 3
+          const sorted = entries.sort((a: any, b: any) => {
+            const timeA = new Date(a[1].updatedAt).getTime();
+            const timeB = new Date(b[1].updatedAt).getTime();
+            return timeB - timeA;
           });
+
+          const latestEntry = sorted[0];
+          const bookId = latestEntry[0];
+          const progress = latestEntry[1] as any;
+
+          try {
+            const ebookDetail = await ebooksApi.getById(String(bookId));
+            if (ebookDetail) {
+              setLastReadBook({
+                ...ebookDetail,
+                cover: ebookDetail.cover_url || ebookDetail.cover,
+                page: progress.page,
+                totalPages: progress.totalPages || 3
+              });
+            }
+          } catch {
+            // Book might not exist anymore
+          }
         }
+      } catch (e) {
+        console.error(e);
       }
-    } catch (e) {
-      console.error(e);
-    }
+    };
+    loadLastRead();
   }, []);
 
   const progressPercent = useMemo(() => {
@@ -53,8 +64,8 @@ export const WelcomeCustomSection = () => {
 
   // Show top 2 announcements
   const latestAnnouncements = useMemo(() => {
-    return ANNOUNCEMENTS.slice(0, 2);
-  }, []);
+    return announcements.slice(0, 2);
+  }, [announcements]);
 
   return (
     <motion.div
@@ -92,46 +103,48 @@ export const WelcomeCustomSection = () => {
       )}
 
       {/* Pengumuman Terbaru Widget */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-slate-800 uppercase tracking-widest">Pengumuman Terbaru</span>
-          <span 
-            onClick={() => navigate('/info')}
-            className="text-xs font-bold text-sky-600 cursor-pointer hover:text-sky-700 transition-colors flex items-center gap-0.5"
-          >
-            Lihat Semua
-            <IconChevronRight size={14} />
-          </span>
-        </div>
-
+      {latestAnnouncements.length > 0 && (
         <div className="flex flex-col gap-3">
-          {latestAnnouncements.map((ann) => (
-            <div
-              key={ann.id}
-              onClick={() => navigate(`/info/${ann.id}`)}
-              className="bg-white border border-slate-200/80 rounded-md p-3 flex gap-3.5 items-center cursor-pointer hover:border-slate-300 transition-all active:scale-[0.99]"
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-widest">Pengumuman Terbaru</span>
+            <span 
+              onClick={() => navigate('/info')}
+              className="text-xs font-bold text-sky-600 cursor-pointer hover:text-sky-700 transition-colors flex items-center gap-0.5"
             >
-              <img
-                src={ann.image}
-                alt={ann.title}
-                className="w-14 h-14 rounded-md object-cover border border-slate-200 shrink-0"
-              />
-              <div className="flex flex-col min-w-0 flex-1">
-                <div className="flex items-center gap-1 text-slate-400">
-                  <IconCalendar size={10} />
-                  <span className="text-[9px] font-bold">{ann.date}</span>
+              Lihat Semua
+              <IconChevronRight size={14} />
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {latestAnnouncements.map((ann) => (
+              <div
+                key={ann.id}
+                onClick={() => navigate(`/info/${ann.id}`)}
+                className="bg-white border border-slate-200/80 rounded-md p-3 flex gap-3.5 items-center cursor-pointer hover:border-slate-300 transition-all active:scale-[0.99]"
+              >
+                <img
+                  src={ann.image_url || ann.image}
+                  alt={ann.title}
+                  className="w-14 h-14 rounded-md object-cover border border-slate-200 shrink-0"
+                />
+                <div className="flex flex-col min-w-0 flex-1">
+                  <div className="flex items-center gap-1 text-slate-400">
+                    <IconCalendar size={10} />
+                    <span className="text-[9px] font-bold">{ann.date}</span>
+                  </div>
+                  <h4 className="text-xs font-extrabold text-slate-800 mt-1 line-clamp-1 m-0 leading-snug">
+                    {ann.title}
+                  </h4>
+                  <p className="text-[10px] text-slate-400 mt-1 line-clamp-1 m-0 leading-relaxed">
+                    {ann.excerpt}
+                  </p>
                 </div>
-                <h4 className="text-xs font-extrabold text-slate-800 mt-1 line-clamp-1 m-0 leading-snug">
-                  {ann.title}
-                </h4>
-                <p className="text-[10px] text-slate-400 mt-1 line-clamp-1 m-0 leading-relaxed">
-                  {ann.excerpt}
-                </p>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </motion.div>
   );
 };

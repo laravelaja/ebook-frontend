@@ -6,17 +6,28 @@ import {
   IconFileText, IconLayoutSidebar, IconSettings,
   IconLayoutAlignTop, IconLayoutAlignMiddle, IconLayoutAlignBottom
 } from '@tabler/icons-react';
-import { getEbookById, saveEbook } from '../../../../utils/ebookStore';
-import type { Ebook, EbookPage } from '../../../../data/EbookDummy';
+import { ebooksApi } from '../../../../api/ebooks';
 import { RichTextEditor } from './components/RichTextEditor';
+
+interface EbookPage {
+  id?: string;
+  chapter: string;
+  paragraphs: string[];
+  content?: string;
+  verticalAlign?: 'top' | 'center' | 'bottom';
+  showChapterTitle?: boolean;
+  showPageNumber?: boolean;
+  order?: number;
+}
 
 export const WriteChapter = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [book, setBook] = useState<Ebook | null>(null);
+  const [book, setBook] = useState<any>(null);
   const [pages, setPages] = useState<EbookPage[]>([]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   // Form states
   const [chapterTitle, setChapterTitle] = useState('');
@@ -31,6 +42,18 @@ export const WriteChapter = () => {
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [verticalAlign, setVerticalAlign] = useState<'top' | 'center' | 'bottom'>('top');
 
+  // Convert API page format to local format
+  const apiPageToLocal = (page: any): EbookPage => ({
+    id: page.id ? String(page.id) : undefined,
+    chapter: page.chapter || '',
+    paragraphs: [],
+    content: page.content || '',
+    verticalAlign: (page.vertical_align || page.verticalAlign || 'top') as 'top' | 'center' | 'bottom',
+    showChapterTitle: page.show_chapter_title ?? page.showChapterTitle ?? false,
+    showPageNumber: page.show_page_number ?? page.showPageNumber ?? false,
+    order: page.order,
+  });
+
   // Convert old paragraphs format to HTML if needed
   const pageToHtml = (page: EbookPage): string => {
     if (page.content) return page.content;
@@ -40,62 +63,101 @@ export const WriteChapter = () => {
     return '';
   };
 
-  // Load book details
+  // Load book details from API
   useEffect(() => {
-    const found = getEbookById(Number(id));
-    if (found) {
-      setBook(found);
-      const bookPages = found.pages || [];
-
-      if (bookPages.length === 0) {
-        const initialPages: EbookPage[] = [{ chapter: 'Bab 1: Bab Baru', paragraphs: [], content: '', verticalAlign: 'top', showChapterTitle: false, showPageNumber: false }];
-        setPages(initialPages);
-        setChapterTitle(initialPages[0].chapter);
-        setHtmlContent('');
-        setVerticalAlign('top');
-        setShowChapterTitle(false);
-        setShowPageNumber(false);
-      } else {
-        setPages(bookPages);
-        setChapterTitle(bookPages[0].chapter);
-        setHtmlContent(pageToHtml(bookPages[0]));
-        setVerticalAlign(bookPages[0].verticalAlign || 'top');
-        setShowChapterTitle(bookPages[0].showChapterTitle ?? false);
-        setShowPageNumber(bookPages[0].showPageNumber ?? false);
+    const fetchBook = async () => {
+      if (!id) return;
+      try {
+        const data = await ebooksApi.getById(id);
+        if (data) {
+          setBook(data);
+          // Convert ebook_pages from API format
+          const apiPages = data.ebook_pages || data.pages || [];
+          if (apiPages.length === 0) {
+            const initialPages: EbookPage[] = [{
+              chapter: 'Bab 1: Bab Baru', paragraphs: [], content: '',
+              verticalAlign: 'top', showChapterTitle: false, showPageNumber: false, order: 1
+            }];
+            setPages(initialPages);
+            setChapterTitle(initialPages[0].chapter);
+            setHtmlContent('');
+          } else {
+            const localPages = apiPages
+              .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+              .map(apiPageToLocal);
+            setPages(localPages);
+            setChapterTitle(localPages[0].chapter);
+            setHtmlContent(pageToHtml(localPages[0]));
+            setVerticalAlign(localPages[0].verticalAlign || 'top');
+            setShowChapterTitle(localPages[0].showChapterTitle ?? false);
+            setShowPageNumber(localPages[0].showPageNumber ?? false);
+          }
+        } else {
+          navigate('/creator');
+        }
+      } catch (error) {
+        console.error('Error fetching book:', error);
+        navigate('/creator');
+      } finally {
+        setLoading(false);
       }
-    } else {
-      navigate('/creator');
-    }
+    };
+    fetchBook();
   }, [id, navigate]);
 
   // Toggle settings - per page, saved immediately
-  const handleToggleChapterTitle = () => {
+  const handleToggleChapterTitle = async () => {
     const newVal = !showChapterTitle;
     setShowChapterTitle(newVal);
-    // Save to current page immediately
-    if (book) {
+    if (book && id) {
       const updatedPages = [...pages];
       updatedPages[currentPageIndex] = {
         ...updatedPages[currentPageIndex],
         showChapterTitle: newVal,
       };
       setPages(updatedPages);
-      saveEbook({ id: book.id, pages: updatedPages });
+      // Save to API
+      const page = updatedPages[currentPageIndex];
+      try {
+        await ebooksApi.savePage(id, {
+          id: page.id,
+          order: page.order || currentPageIndex + 1,
+          chapter: page.chapter,
+          content: page.content || htmlContent,
+          vertical_align: page.verticalAlign || 'top',
+          show_chapter_title: newVal,
+          show_page_number: page.showPageNumber ?? false,
+        });
+      } catch (err) {
+        console.error('Error saving page settings:', err);
+      }
     }
   };
 
-  const handleTogglePageNumber = () => {
+  const handleTogglePageNumber = async () => {
     const newVal = !showPageNumber;
     setShowPageNumber(newVal);
-    // Save to current page immediately
-    if (book) {
+    if (book && id) {
       const updatedPages = [...pages];
       updatedPages[currentPageIndex] = {
         ...updatedPages[currentPageIndex],
         showPageNumber: newVal,
       };
       setPages(updatedPages);
-      saveEbook({ id: book.id, pages: updatedPages });
+      const page = updatedPages[currentPageIndex];
+      try {
+        await ebooksApi.savePage(id, {
+          id: page.id,
+          order: page.order || currentPageIndex + 1,
+          chapter: page.chapter,
+          content: page.content || htmlContent,
+          vertical_align: page.verticalAlign || 'top',
+          show_chapter_title: page.showChapterTitle ?? false,
+          show_page_number: newVal,
+        });
+      } catch (err) {
+        console.error('Error saving page settings:', err);
+      }
     }
   };
 
@@ -112,44 +174,47 @@ export const WriteChapter = () => {
     }
   }, [pages]);
 
-  // Extract plain text from HTML for backward compat
-  const htmlToParagraphs = (html: string): string[] => {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    const text = div.textContent || div.innerText || '';
-    return text.split('\n').map((p) => p.trim()).filter((p) => p !== '');
-  };
-
-  // Save handler
-  const handleSavePage = useCallback((title?: string, content?: string, targetIndex?: number) => {
-    if (!book) return;
+  // Save handler - saves current page to API
+  const handleSavePage = useCallback(async (title?: string, content?: string, targetIndex?: number) => {
+    if (!book || !id) return;
 
     const saveTitle = title ?? chapterTitle;
     const saveContent = content ?? htmlContent;
     const saveIndex = targetIndex ?? currentPageIndex;
 
     setSaveStatus('saving');
-    
-    const paragraphs = htmlToParagraphs(saveContent);
 
     const updatedPages = [...pages];
     updatedPages[saveIndex] = {
       ...updatedPages[saveIndex],
       chapter: saveTitle.trim() || `Bab ${saveIndex + 1}: Tanpa Judul`,
-      paragraphs,
       content: saveContent,
       verticalAlign,
     };
-
     setPages(updatedPages);
-    
-    saveEbook({
-      id: book.id,
-      pages: updatedPages,
-    });
 
-    setSaveStatus('saved');
-  }, [book, chapterTitle, htmlContent, currentPageIndex, pages, verticalAlign]);
+    const page = updatedPages[saveIndex];
+    try {
+      const savedPage = await ebooksApi.savePage(id, {
+        id: page.id,
+        order: page.order || saveIndex + 1,
+        chapter: page.chapter,
+        content: saveContent,
+        vertical_align: verticalAlign,
+        show_chapter_title: page.showChapterTitle ?? false,
+        show_page_number: page.showPageNumber ?? false,
+      });
+      // Update the page id if it was newly created
+      if (savedPage && savedPage.id && !page.id) {
+        updatedPages[saveIndex] = { ...updatedPages[saveIndex], id: String(savedPage.id) };
+        setPages(updatedPages);
+      }
+      setSaveStatus('saved');
+    } catch (err) {
+      console.error('Error saving page:', err);
+      setSaveStatus('idle');
+    }
+  }, [book, id, chapterTitle, htmlContent, currentPageIndex, pages, verticalAlign]);
 
   const handleContentChange = useCallback((html: string) => {
     setHtmlContent(html);
@@ -176,8 +241,8 @@ export const WriteChapter = () => {
     };
   }, [saveStatus, htmlContent, chapterTitle]);
 
-  const handleAddPage = () => {
-    handleSavePage();
+  const handleAddPage = async () => {
+    await handleSavePage();
 
     const newPageIndex = pages.length;
     const newPage: EbookPage = { 
@@ -185,16 +250,30 @@ export const WriteChapter = () => {
       paragraphs: [],
       content: '',
       verticalAlign: 'top',
+      order: newPageIndex + 1,
     };
     
     const updatedPages = [...pages, newPage];
     setPages(updatedPages);
-    
-    if (book) {
-      saveEbook({
-        id: book.id,
-        pages: updatedPages,
-      });
+
+    // Save new page to API
+    if (id) {
+      try {
+        const savedPage = await ebooksApi.savePage(id, {
+          order: newPageIndex + 1,
+          chapter: newPage.chapter,
+          content: '',
+          vertical_align: 'top',
+          show_chapter_title: false,
+          show_page_number: false,
+        });
+        if (savedPage && savedPage.id) {
+          updatedPages[newPageIndex] = { ...updatedPages[newPageIndex], id: String(savedPage.id) };
+          setPages(updatedPages);
+        }
+      } catch (err) {
+        console.error('Error creating new page:', err);
+      }
     }
 
     setCurrentPageIndex(newPageIndex);
@@ -204,27 +283,36 @@ export const WriteChapter = () => {
     setSaveStatus('saved');
   };
 
-  const handleDeletePage = () => {
+  const handleDeletePage = async () => {
     if (pages.length <= 1) {
       alert('Minimal harus memiliki satu halaman naskah.');
       return;
     }
 
     if (window.confirm('Apakah Anda yakin ingin menghapus bab ini?')) {
+      const pageToDelete = pages[currentPageIndex];
+      
+      // Delete from API if it has an id
+      if (pageToDelete.id && id) {
+        try {
+          await ebooksApi.deletePage(id, pageToDelete.id);
+        } catch (err) {
+          console.error('Error deleting page:', err);
+          alert('Gagal menghapus bab. Silakan coba lagi.');
+          return;
+        }
+      }
+
       const updatedPages = pages.filter((_, idx) => idx !== currentPageIndex);
       setPages(updatedPages);
-
-      if (book) {
-        saveEbook({
-          id: book.id,
-          pages: updatedPages,
-        });
-      }
 
       const newIndex = Math.max(0, currentPageIndex - 1);
       setCurrentPageIndex(newIndex);
       setChapterTitle(updatedPages[newIndex].chapter);
       setHtmlContent(pageToHtml(updatedPages[newIndex]));
+      setVerticalAlign(updatedPages[newIndex].verticalAlign || 'top');
+      setShowChapterTitle(updatedPages[newIndex].showChapterTitle ?? false);
+      setShowPageNumber(updatedPages[newIndex].showPageNumber ?? false);
       setSaveStatus('saved');
     }
   };
@@ -237,6 +325,14 @@ export const WriteChapter = () => {
     return text.trim() ? text.trim().split(/\s+/).length : 0;
   }, [htmlContent]);
 
+  if (loading) {
+    return (
+      <div className="h-full w-full flex items-center justify-center bg-slate-50">
+        <div className="w-6 h-6 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   if (!book) return null;
 
   return (
@@ -245,8 +341,8 @@ export const WriteChapter = () => {
       <div className="flex items-center justify-between px-4 lg:px-6 py-3 bg-white border-b border-slate-200 shrink-0">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => {
-              handleSavePage();
+            onClick={async () => {
+              await handleSavePage();
               navigate('/creator');
             }}
             className="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 cursor-pointer border-none transition-colors"
@@ -353,8 +449,8 @@ export const WriteChapter = () => {
               {pages.map((page, idx) => (
                 <button
                   key={idx}
-                  onClick={() => {
-                    handleSavePage();
+                  onClick={async () => {
+                    await handleSavePage();
                     syncPageToInputs(idx);
                   }}
                   className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold cursor-pointer border-none transition-all ${
@@ -367,9 +463,6 @@ export const WriteChapter = () => {
                     <IconFileText size={13} className={idx === currentPageIndex ? 'text-sky-500' : 'text-slate-400'} />
                     <span className="truncate">{page.chapter || `Bab ${idx + 1}`}</span>
                   </div>
-                  <span className="text-[9px] text-slate-400 mt-0.5 ml-5 block">
-                    {page.paragraphs?.length || 0} paragraf
-                  </span>
                 </button>
               ))}
             </div>
@@ -578,12 +671,11 @@ export const WriteChapter = () => {
                   )}
                 </div>
 
-                {/* Page Number - absolute bottom, independent of content flow */}
+                {/* Page Number - absolute bottom */}
                 {showPageNumber && (
                   <div className="absolute bottom-5 left-6 right-6 lg:left-8 lg:right-8 text-center border-t border-black/5 pt-2 z-30">
                     <span className="text-[9px] tracking-wider font-medium text-[#a09080]" style={{ fontFamily: 'Georgia, serif' }}>
                       — halaman {(() => {
-                        // Find first page with showPageNumber enabled
                         const startIdx = pages.findIndex(p => p.showPageNumber);
                         if (startIdx < 0) return 1;
                         return currentPageIndex - startIdx + 1;
