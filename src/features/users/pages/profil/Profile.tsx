@@ -76,7 +76,7 @@ export const Profile = () => {
     if (!user) return;
     
     try {
-      const updatedUser = await usersApi.updateProfile({ bio: newBio });
+      await usersApi.updateProfile({ bio: newBio });
       const sessionUser = { ...user, bio: newBio };
       setUser(sessionUser);
       localStorage.setItem('logged_in_user', JSON.stringify(sessionUser));

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { IconStar, IconPlus, IconTrash, IconGripVertical } from '@tabler/icons-react';
+import { IconStar, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { featuredApi } from '../../../api/featured';
 import { ebooksApi } from '../../../api/ebooks';
