@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { IconCalendar, IconChevronRight } from '@tabler/icons-react';
+import { IconBrandAndroid, IconCalendar, IconChevronRight, IconDownload } from '@tabler/icons-react';
 import { ebooksApi } from '../../api/ebooks';
 
 interface WelcomeCustomSectionProps {
@@ -11,6 +11,7 @@ interface WelcomeCustomSectionProps {
 export const WelcomeCustomSection = ({ announcements }: WelcomeCustomSectionProps) => {
   const navigate = useNavigate();
   const [lastReadBook, setLastReadBook] = useState<any>(null);
+  const androidDownloadUrl = 'https://bimora-kappa.vercel.app/';
 
   useEffect(() => {
     const loadLastRead = async () => {
@@ -145,6 +146,24 @@ export const WelcomeCustomSection = ({ announcements }: WelcomeCustomSectionProp
           </div>
         </div>
       )}
+
+      <a
+        href={androidDownloadUrl}
+        className="bg-sky-50 border border-sky-100 rounded-md p-3 flex items-center justify-between gap-3 no-underline hover:bg-sky-100/70 hover:border-sky-200 transition-all active:scale-[0.99]"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-md bg-white border border-sky-100 flex items-center justify-center shrink-0 text-sky-600">
+            <IconBrandAndroid size={22} stroke={1.8} />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] font-bold text-sky-600 uppercase tracking-wider">Aplikasi Android</span>
+            <span className="text-xs font-extrabold text-slate-800 mt-0.5 truncate">Download Aplikasi</span>
+          </div>
+        </div>
+        <div className="w-9 h-9 rounded-md bg-sky-600 text-white flex items-center justify-center shrink-0">
+          <IconDownload size={18} stroke={2} />
+        </div>
+      </a>
     </motion.div>
   );
 };
