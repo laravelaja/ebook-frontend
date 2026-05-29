@@ -6,7 +6,8 @@ import {
   IconStar, 
   IconTrash
 } from '@tabler/icons-react';
-import { useEbooks } from '../../../../hooks/useApiData';
+import { useEbooks, useBookmarks, useReadingHistory } from '../../../../hooks/useApiData';
+import { ebooksApi } from '../../../../api/ebooks';
 import { SearchInput } from '../../components/SearchInput';
 import { Chategory } from '../../components/Chategory';
 import { BookmarkTabs } from '../../components/BookmarkTabs';
@@ -36,13 +37,24 @@ export const SaveList = () => {
   const [savedBookIds, setSavedBookIds] = useState<string[]>([]);
   const [readingHistory, setReadingHistory] = useState<Record<string, ReadingProgress>>({});
 
+  const loggedIn = !!localStorage.getItem('logged_in_user');
+
   // Fetch all books from API using react-query
   const { data: allBooks = [] } = useEbooks();
 
-  // Load localStorage data
+  // Fetch bookmarks and history from API if logged in
+  const { data: remoteBookmarks } = useBookmarks();
+  const { data: remoteHistory } = useReadingHistory();
+
+  // Sync and load data
   useEffect(() => {
-    const loadLocalData = () => {
-      // Load saved book IDs from localStorage
+    // 1. Sync remote bookmarks to local storage
+    if (loggedIn && remoteBookmarks && Array.isArray(remoteBookmarks)) {
+      const ids = remoteBookmarks.map((b: any) => String(b.id));
+      localStorage.setItem('saved_ebooks', JSON.stringify(ids));
+      setSavedBookIds(ids);
+    } else {
+      // Fallback/Initial load from local storage
       const saved = localStorage.getItem('saved_ebooks');
       let parsedSaved: string[] = [];
       if (saved) {
@@ -54,8 +66,26 @@ export const SaveList = () => {
         } catch (e) {}
       }
       setSavedBookIds(parsedSaved);
+    }
+  }, [remoteBookmarks, loggedIn]);
 
-      // Load reading history from localStorage
+  useEffect(() => {
+    // 2. Sync remote history to local storage
+    if (loggedIn && remoteHistory && Array.isArray(remoteHistory)) {
+      const historyObj: Record<string, ReadingProgress> = {};
+      remoteHistory.forEach((h: any) => {
+        if (h.ebook_id && h.progress) {
+          historyObj[h.ebook_id] = {
+            page: h.progress.page,
+            totalPages: h.progress.totalPages,
+            updatedAt: h.progress.updatedAt
+          };
+        }
+      });
+      localStorage.setItem('reading_history', JSON.stringify(historyObj));
+      setReadingHistory(historyObj);
+    } else {
+      // Fallback/Initial load from local storage
       const history = localStorage.getItem('reading_history');
       let parsedHistory: Record<string, ReadingProgress> = {};
       if (history) {
@@ -67,12 +97,8 @@ export const SaveList = () => {
         } catch (e) {}
       }
       setReadingHistory(parsedHistory);
-    };
-
-    loadLocalData();
-    window.addEventListener('storage', loadLocalData);
-    return () => window.removeEventListener('storage', loadLocalData);
-  }, []);
+    }
+  }, [remoteHistory, loggedIn]);
 
   // Filter bookmarked books
   const savedBooks = useMemo(() => {
@@ -124,10 +150,18 @@ export const SaveList = () => {
       .sort((a, b) => new Date(b.progress.updatedAt).getTime() - new Date(a.progress.updatedAt).getTime());
   }, [readingHistory, allBooks]);
 
-  const removeBookmark = (id: string) => {
+  const removeBookmark = async (id: string) => {
     const newList = savedBookIds.filter((bookId) => bookId !== id);
     setSavedBookIds(newList);
     localStorage.setItem('saved_ebooks', JSON.stringify(newList));
+    
+    if (loggedIn) {
+      try {
+        await ebooksApi.removeBookmark(id);
+      } catch (err) {
+        console.error('Error removing bookmark from backend:', err);
+      }
+    }
   };
 
 

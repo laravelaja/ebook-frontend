@@ -42,4 +42,26 @@ export const ebooksApi = {
     const { data } = await apiClient.delete(`/ebooks/${ebookId}/pages/${pageId}`);
     return data;
   },
+  // Bookmarks
+  getBookmarks: async () => {
+    const { data } = await apiClient.get('/ebooks/user/bookmarks');
+    return data;
+  },
+  addBookmark: async (id: string) => {
+    const { data } = await apiClient.post(`/ebooks/${id}/bookmark`);
+    return data;
+  },
+  removeBookmark: async (id: string) => {
+    const { data } = await apiClient.delete(`/ebooks/${id}/bookmark`);
+    return data;
+  },
+  // Reading History
+  getReadingHistory: async () => {
+    const { data } = await apiClient.get('/ebooks/user/history');
+    return data;
+  },
+  updateReadingHistory: async (id: string, currentPage: number, totalPages: number) => {
+    const { data } = await apiClient.post(`/ebooks/${id}/history`, { currentPage, totalPages });
+    return data;
+  },
 };

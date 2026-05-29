@@ -1,5 +1,6 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { MainLayout } from '../components/layout/MainLayout';
 import { WelcomePage } from '../features/WelcomePage';
 import { EbookList } from '../features/users/pages/ebook/EbookList';
@@ -15,6 +16,11 @@ import { InfoDetail } from '../features/users/pages/info/InfoDetail';
 import { CreatorDashboard } from '../features/users/pages/creator/CreatorDashboard';
 import { EbookForm } from '../features/users/pages/creator/EbookForm';
 import { WriteChapter } from '../features/users/pages/creator/WriteChapter';
+
+// Capacitor & Supabase
+import { App } from '@capacitor/app';
+import { supabase } from '../api/supabaseClient';
+import { Browser } from '@capacitor/browser';
 
 // Admin
 import { AdminLayout } from '../features/admin/components/AdminLayout';
@@ -49,6 +55,48 @@ const AdminGuard = ({ children }: { children: React.ReactNode }) => {
 };
 
 export const AppRoutes = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const setupDeepLinks = async () => {
+      App.addListener('appUrlOpen', async (event: any) => {
+        if (event && event.url && event.url.includes('auth/callback')) {
+          try {
+            const hashIndex = event.url.indexOf('#');
+            if (hashIndex !== -1) {
+              const hash = event.url.substring(hashIndex);
+              const params = new URLSearchParams(hash.substring(1));
+              const accessToken = params.get('access_token');
+              const refreshToken = params.get('refresh_token');
+
+              if (accessToken && refreshToken) {
+                const { error } = await supabase.auth.setSession({
+                  access_token: accessToken,
+                  refresh_token: refreshToken,
+                });
+                if (!error) {
+                  // Close the custom browser tab/window cleanly
+                  try {
+                    await Browser.close();
+                  } catch (e) {}
+                  navigate('/auth/callback', { replace: true });
+                }
+              }
+            }
+          } catch (err) {
+            console.error('Error handling deep link:', err);
+          }
+        }
+      });
+    };
+
+    setupDeepLinks();
+
+    return () => {
+      App.removeAllListeners();
+    };
+  }, [navigate]);
+
   return (
     <Routes>
       {/* User Routes */}

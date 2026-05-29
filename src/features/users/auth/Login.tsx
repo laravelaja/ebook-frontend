@@ -4,6 +4,8 @@ import { motion } from 'framer-motion';
 import { IconMail, IconLock, IconArrowLeft, IconBrandGoogle } from '@tabler/icons-react';
 import { authApi } from '../../../api/auth';
 import { supabase } from '../../../api/supabaseClient';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 
 export const Login = () => {
   const navigate = useNavigate();
@@ -37,14 +39,36 @@ export const Login = () => {
   };
 
   const handleGoogleLogin = async () => {
-    const redirectUrl = window.location.origin + '/auth/callback';
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: redirectUrl,
-      },
-    });
-    if (error) {
+    try {
+      const isNative = Capacitor.isNativePlatform();
+      const redirectUrl = isNative 
+        ? 'com.aurabook.app://auth/callback' 
+        : window.location.origin + '/auth/callback';
+
+      if (isNative) {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: redirectUrl,
+            skipBrowserRedirect: true,
+          },
+        });
+
+        if (error) throw error;
+
+        if (data?.url) {
+          await Browser.open({ url: data.url, windowName: '_self' });
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: redirectUrl,
+          },
+        });
+        if (error) throw error;
+      }
+    } catch (err) {
       setError('Gagal login dengan Google');
     }
   };

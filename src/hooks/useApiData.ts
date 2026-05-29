@@ -71,3 +71,17 @@ export const useFeaturedEbooks = () => {
     queryFn: () => featuredApi.getAll(),
   });
 };
+
+export const useBookmarks = () => {
+  return useQuery({
+    queryKey: ['bookmarks'],
+    queryFn: () => ebooksApi.getBookmarks(),
+  });
+};
+
+export const useReadingHistory = () => {
+  return useQuery({
+    queryKey: ['readingHistory'],
+    queryFn: () => ebooksApi.getReadingHistory(),
+  });
+};

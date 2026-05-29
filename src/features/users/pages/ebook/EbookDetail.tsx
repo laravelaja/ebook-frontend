@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { IconArrowLeft, IconBookmark } from '@tabler/icons-react';
 import { useEbookById } from '../../../../hooks/useApiData';
+import { ebooksApi } from '../../../../api/ebooks';
 
 export const EbookDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -21,7 +22,28 @@ export const EbookDetail = () => {
     }
   });
 
-  const toggleBookmark = () => {
+  // Sync bookmark state from backend on mount if logged in
+  useEffect(() => {
+    const loggedIn = localStorage.getItem('logged_in_user');
+    if (!loggedIn || !id) return;
+
+    const syncBookmarkWithBackend = async () => {
+      try {
+        const bookmarks = await ebooksApi.getBookmarks();
+        if (Array.isArray(bookmarks)) {
+          const ids = bookmarks.map((b: any) => String(b.id));
+          localStorage.setItem('saved_ebooks', JSON.stringify(ids));
+          setIsBookmarked(ids.includes(String(id)));
+        }
+      } catch (err) {
+        console.error('Error syncing bookmarks:', err);
+      }
+    };
+
+    syncBookmarkWithBackend();
+  }, [id]);
+
+  const toggleBookmark = async () => {
     // Check if user is logged in
     const loggedIn = localStorage.getItem('logged_in_user');
     if (!loggedIn) {
@@ -29,24 +51,41 @@ export const EbookDetail = () => {
       return;
     }
 
-    const saved = localStorage.getItem('saved_ebooks');
-    let list: string[] = [];
-    try {
-      list = saved ? JSON.parse(saved) : [];
-      if (!Array.isArray(list)) list = [];
-    } catch {
-      list = [];
-    }
-    
     const bookId = String(id);
-    if (list.includes(bookId)) {
-      list = list.filter((bid) => bid !== bookId);
+    
+    if (isBookmarked) {
       setIsBookmarked(false);
+      // Remove local
+      try {
+        const saved = localStorage.getItem('saved_ebooks');
+        let list = saved ? JSON.parse(saved) : [];
+        list = list.filter((bid: any) => String(bid) !== bookId);
+        localStorage.setItem('saved_ebooks', JSON.stringify(list));
+      } catch {}
+      // Remove remote
+      try {
+        await ebooksApi.removeBookmark(bookId);
+      } catch (err) {
+        console.error('Error removing bookmark from backend:', err);
+      }
     } else {
-      list.push(bookId);
       setIsBookmarked(true);
+      // Add local
+      try {
+        const saved = localStorage.getItem('saved_ebooks');
+        const list = saved ? JSON.parse(saved) : [];
+        if (!list.map(String).includes(bookId)) {
+          list.push(bookId);
+        }
+        localStorage.setItem('saved_ebooks', JSON.stringify(list));
+      } catch {}
+      // Add remote
+      try {
+        await ebooksApi.addBookmark(bookId);
+      } catch (err) {
+        console.error('Error adding bookmark to backend:', err);
+      }
     }
-    localStorage.setItem('saved_ebooks', JSON.stringify(list));
   };
 
   if (loading) {

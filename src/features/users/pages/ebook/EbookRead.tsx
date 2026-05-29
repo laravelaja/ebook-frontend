@@ -20,36 +20,89 @@ export const EbookRead = () => {
   const navigate = useNavigate();
 
   const { data: book, isLoading: loading, isError: error } = useEbookById(id);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => {
+    try {
+      const history = localStorage.getItem('reading_history');
+      if (history && id) {
+        const historyList = JSON.parse(history);
+        if (historyList[id]) {
+          return Number(historyList[id].page) || 1;
+        }
+      }
+    } catch {}
+    return 1;
+  });
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   const bookRef = useRef<any>(null);
 
-  // Initialize reading history for this book on load
+  // Initialize and sync reading history for this book on load
   useEffect(() => {
     if (!book) return;
-    try {
-      const historyKey = 'reading_history';
-      const history = localStorage.getItem(historyKey);
-      const historyList = history ? JSON.parse(history) : {};
-      
-      const pages = getPageContents();
-      const totalPagesCount = pages.length;
+    
+    const syncHistory = async () => {
+      try {
+        const historyKey = 'reading_history';
+        const history = localStorage.getItem(historyKey);
+        const historyList = history ? JSON.parse(history) : {};
+        
+        const pages = getPageContents();
+        const totalPagesCount = pages.length;
 
-      if (!historyList[book.id]) {
-        historyList[book.id] = {
-          page: 1,
-          totalPages: totalPagesCount,
-          updatedAt: new Date().toISOString()
-        };
-        localStorage.setItem(historyKey, JSON.stringify(historyList));
+        // Try syncing from backend if logged in
+        const loggedIn = localStorage.getItem('logged_in_user');
+        if (loggedIn) {
+          try {
+            const remoteHistory = await ebooksApi.getReadingHistory();
+            if (Array.isArray(remoteHistory)) {
+              const newLocalHistory: Record<string, any> = {};
+              remoteHistory.forEach((h: any) => {
+                if (h.ebook_id && h.progress) {
+                  newLocalHistory[h.ebook_id] = {
+                    page: h.progress.page,
+                    totalPages: h.progress.totalPages,
+                    updatedAt: h.progress.updatedAt
+                  };
+                }
+              });
+              const mergedHistory = { ...historyList, ...newLocalHistory };
+              localStorage.setItem(historyKey, JSON.stringify(mergedHistory));
+              
+              if (newLocalHistory[book.id]) {
+                const pageNum = Number(newLocalHistory[book.id].page);
+                setCurrentPage(pageNum);
+                if (bookRef.current) {
+                  try {
+                    const flip = bookRef.current.pageFlip();
+                    if (flip) {
+                      flip.turnToPage(pageNum - 1);
+                    }
+                  } catch {}
+                }
+              }
+            }
+          } catch (apiErr) {
+            console.error("Error syncing reading history from backend:", apiErr);
+          }
+        }
+
+        if (!historyList[book.id]) {
+          historyList[book.id] = {
+            page: 1,
+            totalPages: totalPagesCount,
+            updatedAt: new Date().toISOString()
+          };
+          localStorage.setItem(historyKey, JSON.stringify(historyList));
+        }
+
+        // Increment view count
+        ebooksApi.incrementView(id!).catch(() => {});
+      } catch (err) {
+        console.error("Error initializing reading history:", err);
       }
+    };
 
-      // Increment view count
-      ebooksApi.incrementView(id!).catch(() => {});
-    } catch (err) {
-      console.error("Error initializing reading history:", err);
-    }
+    syncHistory();
   }, [book]);
 
   // Convert API ebook_pages to the format the reader expects
@@ -171,6 +224,12 @@ export const EbookRead = () => {
           updatedAt: new Date().toISOString()
         };
         localStorage.setItem(historyKey, JSON.stringify(historyList));
+
+        // Save to backend if logged in
+        const loggedIn = localStorage.getItem('logged_in_user');
+        if (loggedIn) {
+          ebooksApi.updateReadingHistory(book.id, pageNum, totalPages).catch(() => {});
+        }
       } catch (err) {
         console.error("Error saving reading history:", err);
       }
