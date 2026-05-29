@@ -56,7 +56,7 @@ export const AppRoutes = () => {
         <Route path="/ebooks" element={<EbookList />} />
         <Route path="/ebooks/:id" element={<EbookDetail />} />
         <Route path="/ebooks/:id/read" element={<EbookRead />} />
-        <Route path="/bookmarks" element={<SaveList />} />
+        <Route path="/bookmarks" element={<AuthGuard><SaveList /></AuthGuard>} />
         <Route path="/profile" element={<ProfileGuard />} />
         <Route path="/info" element={<Info />} />
         <Route path="/info/:id" element={<InfoDetail />} />

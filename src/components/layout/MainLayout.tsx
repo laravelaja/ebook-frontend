@@ -6,16 +6,16 @@ export const MainLayout = () => {
   const isCreatorMode = location.pathname.startsWith('/creator');
 
   return (
-    <div className="min-h-dvh w-full flex items-center justify-center py-0 sm:py-8 bg-sky-50 relative overflow-hidden select-none">
+    <div className="min-h-dvh w-full flex items-center justify-center py-0 lg:py-8 bg-white lg:bg-sky-50 relative overflow-hidden select-none">
 
-      {/* Mobile Frame Container (Flat, No Shadow, Rounded-LG) */}
+      {/* Container - full screen on mobile/tablet, framed on large desktop */}
       <div 
-        className={`w-full h-dvh sm:h-[calc(100vh-64px)] glass-effect sm:rounded-lg overflow-hidden flex flex-col relative sm:border sm:border-slate-200 z-10 transition-all duration-300 ${
-          isCreatorMode ? 'max-w-7xl' : 'max-w-107.5'
+        className={`w-full h-dvh lg:h-[calc(100vh-64px)] bg-white lg:rounded-lg overflow-hidden flex flex-col relative lg:border lg:border-slate-200 z-10 transition-all duration-300 ${
+          isCreatorMode ? 'lg:max-w-7xl' : 'lg:max-w-107.5'
         }`}
       >
         {/* Viewport for nested pages */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden touch-pan-y scrollbar-hide pt-0">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden touch-pan-y scrollbar-hide pt-[env(safe-area-inset-top,24px)]">
           <Outlet />
         </div>
 

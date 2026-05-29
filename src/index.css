@@ -12,8 +12,8 @@ html, body {
   margin: 0;
   padding: 0;
   min-height: 100%;
-  background: #f0f9ff; /* Solid light ocean tint */
-  color: #1e293b; /* Dark slate text */
+  background: #ffffff;
+  color: #1e293b;
   font-family: var(--font-sans);
 }
 

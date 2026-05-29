@@ -22,6 +22,13 @@ export const EbookDetail = () => {
   });
 
   const toggleBookmark = () => {
+    // Check if user is logged in
+    const loggedIn = localStorage.getItem('logged_in_user');
+    if (!loggedIn) {
+      navigate('/login');
+      return;
+    }
+
     const saved = localStorage.getItem('saved_ebooks');
     let list: string[] = [];
     try {
