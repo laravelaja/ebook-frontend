@@ -200,7 +200,7 @@ export const PdfUpload = () => {
         message: err?.response?.data?.message || 'Gagal mengupload PDF. Silakan coba lagi.' 
       });
     }
-  }, [pdfFile, title, category, synopsis, categories, pdfPageCount, previewUrl, navigate, queryClient]);
+  }, [pdfFile, title, selectedCategories, synopsis, pdfPageCount, previewUrl, navigate, queryClient]);
 
   const isProcessing = progress.status !== 'idle' && progress.status !== 'done' && progress.status !== 'error';
 
