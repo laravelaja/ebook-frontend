@@ -8,6 +8,7 @@ import { EbookRead } from '../features/users/pages/ebook/EbookRead';
 import { SaveList } from '../features/users/pages/BookMark/SaveList';
 import { Login } from '../features/users/auth/Login';
 import { Register } from '../features/users/auth/Register';
+import { AuthCallback } from '../features/users/auth/AuthCallback';
 import { Profile } from '../features/users/pages/profil/Profile';
 import { Info } from '../features/users/pages/info/Info';
 import { InfoDetail } from '../features/users/pages/info/InfoDetail';
@@ -66,6 +67,7 @@ export const AppRoutes = () => {
         <Route path="/creator/write/:id" element={<AuthGuard><WriteChapter /></AuthGuard>} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
       </Route>
 
       {/* Admin Routes */}

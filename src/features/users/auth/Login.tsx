@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { IconMail, IconLock, IconArrowLeft } from '@tabler/icons-react';
+import { IconMail, IconLock, IconArrowLeft, IconBrandGoogle } from '@tabler/icons-react';
 import { authApi } from '../../../api/auth';
+import { supabase } from '../../../api/supabaseClient';
 
 export const Login = () => {
   const navigate = useNavigate();
@@ -32,6 +33,19 @@ export const Login = () => {
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Email atau password salah');
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    const redirectUrl = window.location.origin + '/auth/callback';
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: redirectUrl,
+      },
+    });
+    if (error) {
+      setError('Gagal login dengan Google');
     }
   };
 
@@ -112,6 +126,23 @@ export const Login = () => {
               Masuk Akun
             </button>
           </form>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 mt-4">
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-[10px] text-slate-400 font-semibold">atau</span>
+            <div className="flex-1 h-px bg-slate-200" />
+          </div>
+
+          {/* Google Login */}
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            className="w-full mt-3 py-3 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-md cursor-pointer hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+          >
+            <IconBrandGoogle size={16} />
+            <span>Masuk dengan Google</span>
+          </button>
 
           {/* Quick Login Assist Info */}
         </div>
