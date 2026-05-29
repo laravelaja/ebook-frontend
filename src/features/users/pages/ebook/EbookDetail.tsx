@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { IconArrowLeft, IconBookmark } from '@tabler/icons-react';
 import { useEbookById } from '../../../../hooks/useApiData';
@@ -8,6 +9,7 @@ import { ebooksApi } from '../../../../api/ebooks';
 export const EbookDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: book, isLoading: loading, isError: error } = useEbookById(id);
 
@@ -65,6 +67,7 @@ export const EbookDetail = () => {
       // Remove remote
       try {
         await ebooksApi.removeBookmark(bookId);
+        queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
       } catch (err) {
         console.error('Error removing bookmark from backend:', err);
       }
@@ -82,6 +85,7 @@ export const EbookDetail = () => {
       // Add remote
       try {
         await ebooksApi.addBookmark(bookId);
+        queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
       } catch (err) {
         console.error('Error adding bookmark to backend:', err);
       }

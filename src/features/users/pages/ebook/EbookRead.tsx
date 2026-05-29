@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { IconArrowLeft, IconChevronLeft, IconChevronRight, IconVolume, IconVolumeOff } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { IconArrowLeft, IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { useEbookById } from '../../../../hooks/useApiData';
 import { ebooksApi } from '../../../../api/ebooks';
-import { playPageFlipSound } from '../../../../utils/pageFlipSound';
 
 interface PageContent {
   chapter: string;
@@ -18,6 +18,7 @@ interface PageContent {
 export const EbookRead = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: book, isLoading: loading, isError: error } = useEbookById(id);
   
@@ -35,8 +36,15 @@ export const EbookRead = () => {
     return 1;
   });
 
-  const [soundEnabled, setSoundEnabled] = useState(true);
   const [direction, setDirection] = useState(0); // 1 for next, -1 for prev
+
+  // Invalidate history cache when reader is closed/unmounted
+  useEffect(() => {
+    return () => {
+      queryClient.invalidateQueries({ queryKey: ['readingHistory'] });
+      queryClient.invalidateQueries({ queryKey: ['ebooks'] });
+    };
+  }, [queryClient]);
 
   // Initialize and sync reading history for this book on load
   useEffect(() => {
@@ -210,7 +218,6 @@ export const EbookRead = () => {
     if (currentPage < totalPages) {
       setDirection(1);
       setCurrentPage((prev) => prev + 1);
-      if (soundEnabled) playPageFlipSound();
     }
   };
 
@@ -218,7 +225,6 @@ export const EbookRead = () => {
     if (currentPage > 1) {
       setDirection(-1);
       setCurrentPage((prev) => prev - 1);
-      if (soundEnabled) playPageFlipSound();
     }
   };
 
@@ -332,16 +338,8 @@ export const EbookRead = () => {
           </span>
         </div>
 
-        {/* Right Side Controls - Sound Toggle */}
-        <div className="flex items-center gap-1.5 z-10">
-          <button 
-            onClick={() => setSoundEnabled((s) => !s)}
-            className="w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer border transition-colors bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
-            title={soundEnabled ? 'Matikan Suara' : 'Nyalakan Suara'}
-          >
-            {soundEnabled ? <IconVolume size={18} /> : <IconVolumeOff size={18} />}
-          </button>
-        </div>
+        {/* Right Side Controls */}
+        <div className="w-9 h-9 z-10" />
       </div>
 
       {/* Reader Layout Content - Stacked Page / Novel Look */}
@@ -354,7 +352,7 @@ export const EbookRead = () => {
           <div className="absolute inset-y-0.5 -right-0.5 w-full h-full rounded-md border opacity-90 z-0 bg-[#fcf8f0] border-[#ebdcb9]" style={{ transform: 'translateY(1.5px)' }} />
 
           {/* GPU Hardware-Accelerated Sliding Reader */}
-          <div className="relative flex-1 w-full h-full z-10 overflow-hidden rounded-md shadow-lg">
+          <div className="relative flex-1 w-full h-full z-10 overflow-hidden rounded-md shadow-lg bg-[#fffdf9]">
             <AnimatePresence initial={false} custom={direction} mode="popLayout">
               <motion.div
                 key={currentPage}
@@ -364,7 +362,7 @@ export const EbookRead = () => {
                 animate="center"
                 exit="exit"
                 transition={{
-                  x: { type: 'spring', stiffness: 350, damping: 35 },
+                  x: { type: 'tween', ease: 'easeOut', duration: 0.2 },
                   opacity: { duration: 0.15 }
                 }}
                 drag="x"

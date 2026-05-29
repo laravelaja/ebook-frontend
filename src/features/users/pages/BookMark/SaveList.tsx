@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   IconBookmark, 
@@ -25,6 +26,7 @@ interface ReadingProgress {
 
 export const SaveList = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>('saved');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Semua');
@@ -158,6 +160,7 @@ export const SaveList = () => {
     if (loggedIn) {
       try {
         await ebooksApi.removeBookmark(id);
+        queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
       } catch (err) {
         console.error('Error removing bookmark from backend:', err);
       }
