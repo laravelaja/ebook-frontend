@@ -11,11 +11,8 @@ import { uploadApi } from '../../../../api/upload';
 import { useCategories } from '../../../../hooks/useApiData';
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Set up PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.mjs',
-  import.meta.url
-).toString();
+// Set up PDF.js worker - use CDN for compatibility with Capacitor/Android WebView
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.worker.min.mjs`;
 
 interface UploadProgress {
   current: number;
@@ -108,8 +105,19 @@ export const PdfUpload = () => {
     await page.render({ canvasContext: ctx, viewport }).promise;
     
     return new Promise((resolve, reject) => {
+      // Try WebP first, fallback to PNG for older WebViews
       canvas.toBlob(
-        (blob) => blob ? resolve(blob) : reject(new Error('Failed to create blob')),
+        (blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            // Fallback to PNG
+            canvas.toBlob(
+              (pngBlob) => pngBlob ? resolve(pngBlob) : reject(new Error('Failed to create blob')),
+              'image/png'
+            );
+          }
+        },
         'image/webp',
         0.85
       );

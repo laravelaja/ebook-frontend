@@ -16,7 +16,9 @@ import { InfoDetail } from '../features/users/pages/info/InfoDetail';
 import { CreatorDashboard } from '../features/users/pages/creator/CreatorDashboard';
 import { EbookForm } from '../features/users/pages/creator/EbookForm';
 import { WriteChapter } from '../features/users/pages/creator/WriteChapter';
-import { PdfUpload } from '../features/users/pages/creator/PdfUpload';
+
+// Lazy load PdfUpload to avoid pdfjs-dist crashing the entire app
+const PdfUpload = React.lazy(() => import('../features/users/pages/creator/PdfUpload').then(m => ({ default: m.PdfUpload })));
 
 // Capacitor & Supabase
 import { App } from '@capacitor/app';
@@ -178,7 +180,7 @@ export const AppRoutes = () => {
         <Route path="/creator/new" element={<AuthGuard><EbookForm /></AuthGuard>} />
         <Route path="/creator/edit/:id" element={<AuthGuard><EbookForm /></AuthGuard>} />
         <Route path="/creator/write/:id" element={<AuthGuard><WriteChapter /></AuthGuard>} />
-        <Route path="/creator/upload-pdf" element={<AuthGuard><PdfUpload /></AuthGuard>} />
+        <Route path="/creator/upload-pdf" element={<AuthGuard><React.Suspense fallback={<div className="min-h-full w-full flex items-center justify-center"><div className="w-6 h-6 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" /></div>}><PdfUpload /></React.Suspense></AuthGuard>} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
