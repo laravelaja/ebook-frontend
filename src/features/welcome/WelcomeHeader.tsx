@@ -29,7 +29,7 @@ export const WelcomeHeader = ({ user }: WelcomeHeaderProps) => {
             <IconBook size={20} className="text-white" stroke={2.5} />
           </div>
           <span className="text-lg font-black tracking-tight font-display text-slate-800">
-            AuraBook
+            Bimora
           </span>
         </div>
       )}
