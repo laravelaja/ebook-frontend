@@ -114,6 +114,9 @@ export const Profile = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('logged_in_user');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('saved_ebooks');
+    localStorage.removeItem('reading_history');
     navigate('/login');
   };
 

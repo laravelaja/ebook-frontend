@@ -19,6 +19,18 @@ export const Register = () => {
       setError('Semua form wajib diisi');
       return;
     }
+    if (password.length < 6) {
+      setError('Password minimal 6 karakter');
+      return;
+    }
+    if (!email.includes('@') || !email.includes('.')) {
+      setError('Format email tidak valid');
+      return;
+    }
+    if (name.trim().length < 2) {
+      setError('Nama minimal 2 karakter');
+      return;
+    }
 
     try {
       const response = await authApi.register(name, email, password);

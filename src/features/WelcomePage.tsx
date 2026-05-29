@@ -3,6 +3,7 @@ import { WelcomeHeader } from './welcome/WelcomeHeader';
 import { WelcomeBanner } from './welcome/WelcomeBanner';
 import { WelcomeTopEbooks } from './welcome/WelcomeTopEbooks';
 import { WelcomeCustomSection } from './welcome/WelcomeCustomSection';
+import { Skeleton, BannerSkeleton } from '../components/ui/Skeleton';
 import { useBanners, useEbooks, useAnnouncements, useFeaturedEbooks } from '../hooks/useApiData';
 
 export const WelcomePage = () => {
@@ -29,10 +30,11 @@ export const WelcomePage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-full w-full flex items-center justify-center bg-white">
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-6 h-6 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs text-slate-400 font-medium">Memuat...</span>
+      <div className="min-h-full w-full flex flex-col gap-6 px-5 pb-6 pt-5 bg-white">
+        <Skeleton className="h-12 w-48" />
+        <BannerSkeleton />
+        <div className="grid grid-cols-3 gap-3">
+          {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="aspect-[148/210] rounded-md" />)}
         </div>
       </div>
     );

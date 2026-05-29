@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import HTMLFlipBook from 'react-pageflip-enhanced';
 import { IconArrowLeft, IconChevronLeft, IconChevronRight, IconVolume, IconVolumeOff } from '@tabler/icons-react';
 import { useEbookById } from '../../../../hooks/useApiData';
+import { ebooksApi } from '../../../../api/ebooks';
 import { playPageFlipSound } from '../../../../utils/pageFlipSound';
 
 interface PageContent {
@@ -43,6 +44,9 @@ export const EbookRead = () => {
         };
         localStorage.setItem(historyKey, JSON.stringify(historyList));
       }
+
+      // Increment view count
+      ebooksApi.incrementView(id!).catch(() => {});
     } catch (err) {
       console.error("Error initializing reading history:", err);
     }

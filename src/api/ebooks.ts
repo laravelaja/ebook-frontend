@@ -26,6 +26,9 @@ export const ebooksApi = {
     const { data } = await apiClient.delete(`/ebooks/${id}`);
     return data;
   },
+  incrementView: async (id: string) => {
+    await apiClient.post(`/ebooks/${id}/view`);
+  },
   // Pages
   getPages: async (ebookId: string) => {
     const { data } = await apiClient.get(`/ebooks/${ebookId}/pages`);
