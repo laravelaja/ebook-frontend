@@ -1,6 +1,6 @@
 import React from 'react';
 import { useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { MainLayout } from '../components/layout/MainLayout';
 import { WelcomePage } from '../features/WelcomePage';
 import { EbookList } from '../features/users/pages/ebook/EbookList';
@@ -21,6 +21,8 @@ import { WriteChapter } from '../features/users/pages/creator/WriteChapter';
 import { App } from '@capacitor/app';
 import { supabase } from '../api/supabaseClient';
 import { Browser } from '@capacitor/browser';
+import { Capacitor } from '@capacitor/core';
+import { StatusBar, Style } from '@capacitor/status-bar';
 
 // Admin
 import { AdminLayout } from '../features/admin/components/AdminLayout';
@@ -56,6 +58,68 @@ const AdminGuard = ({ children }: { children: React.ReactNode }) => {
 
 export const AppRoutes = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Overlay status bar on app launch so styling flows beneath it
+  useEffect(() => {
+    const initStatusBar = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          await StatusBar.setOverlaysWebView({ overlay: true });
+        } catch (e) {
+          console.error('Error overlaying status bar:', e);
+        }
+      }
+    };
+    initStatusBar();
+  }, []);
+
+  // Update status bar icons dynamically (dark icons on light page, white icons on dark admin page)
+  useEffect(() => {
+    const updateStatusBarStyle = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const isAdmin = location.pathname.startsWith('/admin');
+          await StatusBar.setStyle({
+            style: isAdmin ? Style.Dark : Style.Light
+          });
+        } catch (e) {
+          console.error('Error setting status bar style:', e);
+        }
+      }
+    };
+    updateStatusBarStyle();
+  }, [location.pathname]);
+
+  // Handle Android hardware back button & swipe back gesture
+  useEffect(() => {
+    let listener: { remove: () => void } | null = null;
+
+    const setupBackButton = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          listener = await App.addListener('backButton', (data) => {
+            // Exit the app if we are on the Home screen or if there is no back history
+            if (location.pathname === '/' || !data.canGoBack) {
+              App.exitApp();
+            } else {
+              navigate(-1);
+            }
+          });
+        } catch (err) {
+          console.error('Error setting up back button listener:', err);
+        }
+      }
+    };
+
+    setupBackButton();
+
+    return () => {
+      if (listener) {
+        listener.remove();
+      }
+    };
+  }, [location.pathname, navigate]);
 
   useEffect(() => {
     const setupDeepLinks = async () => {

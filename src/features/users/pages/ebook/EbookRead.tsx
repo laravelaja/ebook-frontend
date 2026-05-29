@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import HTMLFlipBook from 'react-pageflip-enhanced';
+import { AnimatePresence, motion } from 'framer-motion';
 import { IconArrowLeft, IconChevronLeft, IconChevronRight, IconVolume, IconVolumeOff } from '@tabler/icons-react';
 import { useEbookById } from '../../../../hooks/useApiData';
 import { ebooksApi } from '../../../../api/ebooks';
@@ -20,6 +20,8 @@ export const EbookRead = () => {
   const navigate = useNavigate();
 
   const { data: book, isLoading: loading, isError: error } = useEbookById(id);
+  
+  // Track current page (1-based index)
   const [currentPage, setCurrentPage] = useState(() => {
     try {
       const history = localStorage.getItem('reading_history');
@@ -32,9 +34,9 @@ export const EbookRead = () => {
     } catch {}
     return 1;
   });
-  const [soundEnabled, setSoundEnabled] = useState(true);
 
-  const bookRef = useRef<any>(null);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [direction, setDirection] = useState(0); // 1 for next, -1 for prev
 
   // Initialize and sync reading history for this book on load
   useEffect(() => {
@@ -71,14 +73,6 @@ export const EbookRead = () => {
               if (newLocalHistory[book.id]) {
                 const pageNum = Number(newLocalHistory[book.id].page);
                 setCurrentPage(pageNum);
-                if (bookRef.current) {
-                  try {
-                    const flip = bookRef.current.pageFlip();
-                    if (flip) {
-                      flip.turnToPage(pageNum - 1);
-                    }
-                  } catch {}
-                }
               }
             }
           } catch (apiErr) {
@@ -144,6 +138,42 @@ export const EbookRead = () => {
     ];
   };
 
+  const pagesContent = getPageContents();
+  const totalPages = pagesContent.length;
+
+  // Sync progress to localstorage & backend on currentPage changes
+  useEffect(() => {
+    if (!book || totalPages === 0) return;
+    
+    const saveProgress = async () => {
+      try {
+        const historyKey = 'reading_history';
+        const history = localStorage.getItem(historyKey);
+        const historyList = history ? JSON.parse(history) : {};
+
+        // Avoid double writes if values match
+        if (historyList[book.id]?.page === currentPage) return;
+        
+        historyList[book.id] = {
+          page: currentPage,
+          totalPages: totalPages,
+          updatedAt: new Date().toISOString()
+        };
+        localStorage.setItem(historyKey, JSON.stringify(historyList));
+
+        // Save to backend if logged in
+        const loggedIn = localStorage.getItem('logged_in_user');
+        if (loggedIn) {
+          await ebooksApi.updateReadingHistory(book.id, currentPage, totalPages);
+        }
+      } catch (err) {
+        console.error("Error saving reading progress on page change:", err);
+      }
+    };
+
+    saveProgress();
+  }, [currentPage, book, totalPages]);
+
   if (loading) {
     return (
       <div className="min-h-full w-full flex items-center justify-center bg-gradient-to-br from-[#f8f3e8] via-[#eedfb8] to-[#e4d3a2]">
@@ -166,8 +196,6 @@ export const EbookRead = () => {
     );
   }
 
-  const pagesContent = getPageContents();
-  const totalPages = pagesContent.length;
   const author = book.author_name || book.author || 'Anonim';
 
   // Page number logic: if a page has showPageNumber=true, that page and all subsequent pages show numbers
@@ -179,60 +207,18 @@ export const EbookRead = () => {
   })();
 
   const handleNext = () => {
-    if (bookRef.current) {
-      try {
-        const flip = bookRef.current.pageFlip();
-        if (flip) {
-          flip.flipNext();
-          if (soundEnabled) playPageFlipSound();
-        }
-      } catch (err) {
-        console.error("Error in handleNext:", err);
-      }
+    if (currentPage < totalPages) {
+      setDirection(1);
+      setCurrentPage((prev) => prev + 1);
+      if (soundEnabled) playPageFlipSound();
     }
   };
 
   const handlePrev = () => {
-    if (bookRef.current) {
-      try {
-        const flip = bookRef.current.pageFlip();
-        if (flip) {
-          flip.flipPrev();
-          if (soundEnabled) playPageFlipSound();
-        }
-      } catch (err) {
-        console.error("Error in handlePrev:", err);
-      }
-    }
-  };
-
-  const onFlip = (e: any) => {
-    if (e && typeof e.data === 'number') {
-      const pageNum = e.data + 1;
-      setCurrentPage(pageNum);
-
-      // Play page flip sound on manual swipe
+    if (currentPage > 1) {
+      setDirection(-1);
+      setCurrentPage((prev) => prev - 1);
       if (soundEnabled) playPageFlipSound();
-
-      try {
-        const historyKey = 'reading_history';
-        const history = localStorage.getItem(historyKey);
-        const historyList = history ? JSON.parse(history) : {};
-        historyList[book.id] = {
-          page: pageNum,
-          totalPages: totalPages,
-          updatedAt: new Date().toISOString()
-        };
-        localStorage.setItem(historyKey, JSON.stringify(historyList));
-
-        // Save to backend if logged in
-        const loggedIn = localStorage.getItem('logged_in_user');
-        if (loggedIn) {
-          ebooksApi.updateReadingHistory(book.id, pageNum, totalPages).catch(() => {});
-        }
-      } catch (err) {
-        console.error("Error saving reading history:", err);
-      }
     }
   };
 
@@ -306,6 +292,22 @@ export const EbookRead = () => {
     </div>
   ));
 
+  // Framer Motion Animation Variants for GPU Sliding
+  const slideVariants = {
+    enter: (dir: number) => ({
+      x: dir > 0 ? '100%' : dir < 0 ? '-100%' : 0,
+      opacity: 0.9
+    }),
+    center: {
+      x: 0,
+      opacity: 1
+    },
+    exit: (dir: number) => ({
+      x: dir < 0 ? '100%' : dir > 0 ? '-100%' : 0,
+      opacity: 0.9
+    })
+  };
+
   return (
     <div className="min-h-full w-full flex flex-col bg-gradient-to-br from-[#f8f3e8] via-[#eedfb8] to-[#e4d3a2]">
       {/* Header */}
@@ -346,38 +348,41 @@ export const EbookRead = () => {
       <div className="flex-1 overflow-visible px-5 py-6 flex flex-col justify-center select-none">
         <div className="relative w-full max-w-sm mx-auto aspect-[7/10] flex flex-col">
           
-          {/* Stacked Pages */}
+          {/* Stacked Pages Behind (Visual Aesthetics) */}
           <div className="absolute inset-y-1.5 -right-2.5 w-full h-full rounded-md border opacity-40 z-0 bg-[#ebdcb9] border-[#d8c599]" style={{ transform: 'translateY(5px)' }} />
           <div className="absolute inset-y-1 -right-1.5 w-full h-full rounded-md border opacity-75 z-0 bg-[#f5ebd0] border-[#e0cfa5]" style={{ transform: 'translateY(3px)' }} />
           <div className="absolute inset-y-0.5 -right-0.5 w-full h-full rounded-md border opacity-90 z-0 bg-[#fcf8f0] border-[#ebdcb9]" style={{ transform: 'translateY(1.5px)' }} />
 
-          {/* FlipBook Container */}
-          <div className="relative flex-1 w-full h-full z-10">
-            <HTMLFlipBook
-              ref={(el) => {
-                bookRef.current = el;
-              }}
-              width={350}
-              height={500}
-              size="stretch"
-              minWidth={280}
-              maxWidth={450}
-              minHeight={400}
-              maxHeight={600}
-              drawShadow={true}
-              flippingTime={400}
-              usePortrait={true}
-              startPage={currentPage - 1}
-              useMouseEvents={true}
-              swipeDistance={15}
-              showPageCorners={false}
-              disableFlipByClick={true}
-              onFlip={onFlip}
-              className="w-full h-full"
-              style={{ background: 'transparent' }}
-            >
-              {renderedPages}
-            </HTMLFlipBook>
+          {/* GPU Hardware-Accelerated Sliding Reader */}
+          <div className="relative flex-1 w-full h-full z-10 overflow-hidden rounded-md shadow-lg">
+            <AnimatePresence initial={false} custom={direction} mode="popLayout">
+              <motion.div
+                key={currentPage}
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{
+                  x: { type: 'spring', stiffness: 350, damping: 35 },
+                  opacity: { duration: 0.15 }
+                }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.4}
+                onDragEnd={(_, info) => {
+                  const swipeThreshold = 50;
+                  if (info.offset.x < -swipeThreshold) {
+                    handleNext();
+                  } else if (info.offset.x > swipeThreshold) {
+                    handlePrev();
+                  }
+                }}
+                className="w-full h-full absolute inset-0 cursor-grab active:cursor-grabbing"
+              >
+                {renderedPages[currentPage - 1]}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       </div>
@@ -408,7 +413,7 @@ export const EbookRead = () => {
           </button>
 
           <span className="text-[9px] font-bold font-sans text-slate-400 uppercase tracking-widest">
-            Selesai {(currentPage / totalPages * 100).toFixed(0)}%
+            Selesai {totalPages > 0 ? ((currentPage / totalPages) * 100).toFixed(0) : 0}%
           </span>
 
           <button 

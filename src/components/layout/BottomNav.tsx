@@ -17,11 +17,9 @@ export const BottomNav = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
 
-  // Hide bottom nav on ebook reader page, auth pages, and chapter editor
+  // Hide bottom nav on ebook reader page and chapter editor
   if (
     location.pathname.endsWith('/read') || 
-    location.pathname === '/login' || 
-    location.pathname === '/register' ||
     location.pathname.includes('/creator/write')
   ) {
     return null;
@@ -48,9 +46,14 @@ export const BottomNav = () => {
   return (
     <div className="w-full bg-white border-t border-slate-200 flex items-center justify-around shrink-0 pb-[env(safe-area-inset-bottom,8px)] pt-2 px-2 z-100">
       {NAV_ITEMS.map((item) => {
-        const isActive = item.path === '/' 
+        let isActive = item.path === '/' 
           ? location.pathname === '/' 
           : location.pathname.startsWith(item.path);
+          
+        // Highlight Profile tab when on login or register screen
+        if (item.path === '/profile' && (location.pathname === '/login' || location.pathname === '/register')) {
+          isActive = true;
+        }
           
         const Icon = item.icon;
         

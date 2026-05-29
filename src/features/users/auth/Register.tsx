@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { IconMail, IconLock, IconUser, IconArrowLeft } from '@tabler/icons-react';
+import { IconMail, IconLock, IconUser, IconArrowLeft, IconEye, IconEyeOff } from '@tabler/icons-react';
 import { authApi } from '../../../api/auth';
 
 export const Register = () => {
@@ -9,6 +9,7 @@ export const Register = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -66,7 +67,7 @@ export const Register = () => {
           <div className="text-center mb-6">
             <h1 className="text-xl font-black text-slate-900 tracking-tight m-0">Daftar Akun Baru</h1>
             <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
-              Bergabunglah bersama kami untuk menandai, membaca, dan melacak riwayat bacaan Anda.
+              Silahkan masukkan data diri anda untuk membuat akun baru. 
             </p>
           </div>
 
@@ -119,12 +120,19 @@ export const Register = () => {
                   <IconLock size={16} />
                 </span>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Minimal 6 karakter"
-                  className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-md text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
+                  className="w-full pl-9 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-md text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 bg-transparent border-none cursor-pointer flex items-center justify-center p-0"
+                >
+                  {showPassword ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+                </button>
               </div>
             </div>
 
