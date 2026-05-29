@@ -17,7 +17,7 @@ export const EbookForm = () => {
   const [title, setTitle] = useState('');
   const [synopsis, setSynopsis] = useState('');
   const [cover, setCover] = useState('');
-  const [category, setCategory] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [initialized, setInitialized] = useState(false);
@@ -40,16 +40,17 @@ export const EbookForm = () => {
       setTitle(bookData.title);
       setSynopsis(bookData.synopsis || '');
       setCover(bookData.cover_url || bookData.cover || '');
-      setCategory(bookData.category_name || bookData.category || categories[0] || '');
+      // Parse category - support comma-separated multi-category
+      const catStr = bookData.category_name || bookData.category || '';
+      setSelectedCategories(catStr ? catStr.split(',').map((c: string) => c.trim()).filter(Boolean) : []);
       setInitialized(true);
     } else if (isEdit && !loadingBook && !bookData) {
       // Book not found
       navigate('/creator');
     } else if (!isEdit && categories.length > 0) {
-      if (!category) setCategory(categories[0]);
       setInitialized(true);
     }
-  }, [isEdit, bookData, loadingBook, loadingCategories, categories, initialized, navigate, category]);
+  }, [isEdit, bookData, loadingBook, loadingCategories, categories, initialized, navigate]);
 
   // Handle cover image upload from device
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,7 +97,7 @@ export const EbookForm = () => {
         title,
         synopsis,
         cover_url: cover.trim() || undefined,
-        category,
+        category: selectedCategories.join(','),
       };
 
       if (isEdit && id) {
@@ -233,18 +234,36 @@ export const EbookForm = () => {
           />
         </div>
 
-        {/* Category */}
+        {/* Category - Multi Select Chips */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Kategori</label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-300 text-sm font-semibold text-slate-700 bg-white cursor-pointer"
-          >
-            {categories.map((cat: string) => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
+          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+            Kategori {selectedCategories.length > 0 && <span className="text-sky-600">({selectedCategories.length} dipilih)</span>}
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {categories.map((cat: string) => {
+              const isSelected = selectedCategories.includes(cat);
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => {
+                    if (isSelected) {
+                      setSelectedCategories(selectedCategories.filter(c => c !== cat));
+                    } else {
+                      setSelectedCategories([...selectedCategories, cat]);
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border cursor-pointer transition-all ${
+                    isSelected
+                      ? 'bg-sky-600 text-white border-sky-600'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-sky-300 hover:text-sky-600'
+                  }`}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Synopsis */}

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { IconArrowLeft, IconPlus, IconBook, IconFileText, IconPencil, IconSearch } from '@tabler/icons-react';
+import { IconArrowLeft, IconPlus, IconBook, IconFileText, IconPencil, IconSearch, IconFileTypePdf } from '@tabler/icons-react';
 import { ebooksApi } from '../../../../api/ebooks';
 import { useMyBooks } from '../../../../hooks/useApiData';
 import { CreatorBookCard } from './components/CreatorBookCard';
@@ -74,13 +74,22 @@ export const CreatorDashboard = () => {
           </div>
         </div>
 
-        <button
-          onClick={() => navigate('/creator/new')}
-          className="h-9 px-4 bg-slate-800 hover:bg-slate-900 text-white rounded-lg cursor-pointer border-none flex items-center justify-center gap-1.5 text-xs font-bold transition-colors"
-        >
-          <IconPlus size={14} />
-          <span>Tulis Ebook</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/creator/upload-pdf')}
+            className="h-9 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-lg cursor-pointer border-none flex items-center justify-center gap-1.5 text-xs font-bold transition-colors"
+          >
+            <IconFileTypePdf size={14} />
+            <span className="hidden sm:inline">Upload PDF</span>
+          </button>
+          <button
+            onClick={() => navigate('/creator/new')}
+            className="h-9 px-4 bg-slate-800 hover:bg-slate-900 text-white rounded-lg cursor-pointer border-none flex items-center justify-center gap-1.5 text-xs font-bold transition-colors"
+          >
+            <IconPlus size={14} />
+            <span>Tulis Ebook</span>
+          </button>
+        </div>
       </motion.div>
 
       {/* Content */}

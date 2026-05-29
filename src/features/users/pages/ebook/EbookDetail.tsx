@@ -116,7 +116,8 @@ export const EbookDetail = () => {
 
   const cover = book.cover_url || book.cover;
   const author = book.author_name || book.author || 'Anonim';
-  const category = book.category || '';
+  const categoryStr = book.category || '';
+  const categoryList = categoryStr ? categoryStr.split(',').map((c: string) => c.trim()).filter(Boolean) : [];
   const pageCount = book.ebook_pages?.length || book.pages?.length || 0;
   const synopsis = book.synopsis || '';
 
@@ -167,7 +168,7 @@ export const EbookDetail = () => {
           className="text-center mt-6 flex flex-col gap-1.5"
         >
           <span className="px-2.5 py-0.5 self-center rounded-lg bg-sky-50 text-sky-700 text-[9px] font-extrabold uppercase tracking-wider border border-sky-100/50">
-            {category}
+            {categoryList.length > 0 ? categoryList.join(' • ') : 'Tanpa Kategori'}
           </span>
           <h2 className="text-lg font-black tracking-tight text-slate-800 leading-snug m-0 px-2">
             {book.title}
@@ -193,7 +194,7 @@ export const EbookDetail = () => {
             <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Halaman</span>
           </div>
           <div className="flex flex-col items-center gap-1 text-center border-l border-slate-200">
-            <span className="text-[11px] font-bold text-slate-800 leading-none mt-0.5">{category}</span>
+            <span className="text-[11px] font-bold text-slate-800 leading-none mt-0.5">{categoryList.length > 0 ? categoryList[0] : '-'}</span>
             <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Kategori</span>
           </div>
         </motion.div>

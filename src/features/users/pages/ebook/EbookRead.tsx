@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
-import { IconArrowLeft, IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
+import { IconArrowLeft, IconChevronLeft, IconChevronRight, IconMaximize, IconMinimize } from '@tabler/icons-react';
 import { useEbookById } from '../../../../hooks/useApiData';
 import { ebooksApi } from '../../../../api/ebooks';
 
@@ -206,6 +206,13 @@ export const EbookRead = () => {
 
   const author = book.author_name || book.author || 'Anonim';
 
+  // Detect if this is a PDF-based ebook (pages contain <img> with pdf-page-image class)
+  const isPdfEbook = pagesContent.length > 0 && 
+    pagesContent[0].content?.includes('pdf-page-image');
+
+  // Full-screen mode for PDF ebooks
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
   // Page number logic: if a page has showPageNumber=true, that page and all subsequent pages show numbers
   const pageNumberStartIndex = (() => {
     for (let i = 0; i < pagesContent.length; i++) {
@@ -230,7 +237,21 @@ export const EbookRead = () => {
 
   const fontSizeClass = 'text-[15px] leading-[1.75] text-[#2b1f1d]';
 
-  const renderedPages = pagesContent.map((content, index) => (
+  // PDF Page Renderer - clean full-page image display
+  const renderPdfPage = (content: PageContent, index: number) => (
+    <div
+      key={index}
+      className="relative w-full h-full flex items-center justify-center rounded-md overflow-hidden bg-white select-none border border-[#ebdcb9]"
+    >
+      <div 
+        className="w-full h-full flex items-center justify-center [&>img]:w-full [&>img]:h-full [&>img]:object-contain"
+        dangerouslySetInnerHTML={{ __html: content.content || '' }}
+      />
+    </div>
+  );
+
+  // Text Page Renderer - original book-style display
+  const renderTextPage = (content: PageContent, index: number) => (
     <div
       key={index}
       className="relative w-full h-full flex flex-col px-8 py-9 rounded-md border shadow-sm select-none overflow-hidden bg-[#fffdf9] border-[#ebdcb9] text-[#3c2f2f]"
@@ -296,7 +317,11 @@ export const EbookRead = () => {
         )}
       </div>
     </div>
-  ));
+  );
+
+  const renderedPages = pagesContent.map((content, index) => 
+    isPdfEbook ? renderPdfPage(content, index) : renderTextPage(content, index)
+  );
 
   // Framer Motion Animation Variants for GPU Sliding
   const slideVariants = {
@@ -317,7 +342,7 @@ export const EbookRead = () => {
   return (
     <div className="min-h-full w-full flex flex-col bg-gradient-to-br from-[#f8f3e8] via-[#eedfb8] to-[#e4d3a2]">
       {/* Header */}
-      <div className="relative flex items-center justify-between px-5 pt-5 pb-3 sticky top-0 z-20 shrink-0 border-b bg-[#faf6eb] border-[#ebdcb9]">
+      <div className={`relative flex items-center justify-between px-5 pt-5 pb-3 sticky top-0 z-20 shrink-0 border-b bg-[#faf6eb] border-[#ebdcb9] ${isFullscreen ? 'hidden' : ''}`}>
         {/* Left Side */}
         <div className="z-10">
           <button 
@@ -339,54 +364,113 @@ export const EbookRead = () => {
         </div>
 
         {/* Right Side Controls */}
-        <div className="w-9 h-9 z-10" />
-      </div>
-
-      {/* Reader Layout Content - Stacked Page / Novel Look */}
-      <div className="flex-1 overflow-visible px-5 py-6 flex flex-col justify-center select-none">
-        <div className="relative w-full max-w-sm mx-auto aspect-[7/10] flex flex-col">
-          
-          {/* Stacked Pages Behind (Visual Aesthetics) */}
-          <div className="absolute inset-y-1.5 -right-2.5 w-full h-full rounded-md border opacity-40 z-0 bg-[#ebdcb9] border-[#d8c599]" style={{ transform: 'translateY(5px)' }} />
-          <div className="absolute inset-y-1 -right-1.5 w-full h-full rounded-md border opacity-75 z-0 bg-[#f5ebd0] border-[#e0cfa5]" style={{ transform: 'translateY(3px)' }} />
-          <div className="absolute inset-y-0.5 -right-0.5 w-full h-full rounded-md border opacity-90 z-0 bg-[#fcf8f0] border-[#ebdcb9]" style={{ transform: 'translateY(1.5px)' }} />
-
-          {/* GPU Hardware-Accelerated Sliding Reader */}
-          <div className="relative flex-1 w-full h-full z-10 overflow-hidden rounded-md shadow-lg bg-[#fffdf9]">
-            <AnimatePresence initial={false} custom={direction} mode="popLayout">
-              <motion.div
-                key={currentPage}
-                custom={direction}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{
-                  x: { type: 'tween', ease: 'easeOut', duration: 0.2 },
-                  opacity: { duration: 0.15 }
-                }}
-                drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.4}
-                onDragEnd={(_, info) => {
-                  const swipeThreshold = 50;
-                  if (info.offset.x < -swipeThreshold) {
-                    handleNext();
-                  } else if (info.offset.x > swipeThreshold) {
-                    handlePrev();
-                  }
-                }}
-                className="w-full h-full absolute inset-0 cursor-grab active:cursor-grabbing"
-              >
-                {renderedPages[currentPage - 1]}
-              </motion.div>
-            </AnimatePresence>
-          </div>
+        <div className="z-10">
+          {isPdfEbook && (
+            <button
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              className="w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer border transition-colors bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
+            >
+              {isFullscreen ? <IconMinimize size={16} /> : <IconMaximize size={16} />}
+            </button>
+          )}
+          {!isPdfEbook && <div className="w-9 h-9" />}
         </div>
       </div>
 
+      {/* Reader Layout Content */}
+      {isPdfEbook ? (
+        /* PDF Mode - Clean full-page image display with light theme */
+        <div className={`flex-1 overflow-visible flex flex-col justify-center select-none ${isFullscreen ? 'px-0 py-0' : 'px-5 py-6'}`}>
+          <div className={`relative w-full mx-auto flex flex-col ${isFullscreen ? 'max-w-full h-full' : 'max-w-sm aspect-[7/10]'}`}>
+            {/* Stacked Pages Behind (same as text mode) */}
+            {!isFullscreen && (
+              <>
+                <div className="absolute inset-y-1.5 -right-2.5 w-full h-full rounded-md border opacity-40 z-0 bg-[#ebdcb9] border-[#d8c599]" style={{ transform: 'translateY(5px)' }} />
+                <div className="absolute inset-y-1 -right-1.5 w-full h-full rounded-md border opacity-75 z-0 bg-[#f5ebd0] border-[#e0cfa5]" style={{ transform: 'translateY(3px)' }} />
+                <div className="absolute inset-y-0.5 -right-0.5 w-full h-full rounded-md border opacity-90 z-0 bg-[#fcf8f0] border-[#ebdcb9]" style={{ transform: 'translateY(1.5px)' }} />
+              </>
+            )}
+
+            {/* GPU Hardware-Accelerated Sliding Reader */}
+            <div className="relative flex-1 w-full h-full z-10 overflow-hidden rounded-md shadow-lg bg-white">
+              <AnimatePresence initial={false} custom={direction} mode="popLayout">
+                <motion.div
+                  key={currentPage}
+                  custom={direction}
+                  variants={slideVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    x: { type: 'tween', ease: 'easeOut', duration: 0.2 },
+                    opacity: { duration: 0.15 }
+                  }}
+                  drag="x"
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.4}
+                  onDragEnd={(_, info) => {
+                    const swipeThreshold = 50;
+                    if (info.offset.x < -swipeThreshold) {
+                      handleNext();
+                    } else if (info.offset.x > swipeThreshold) {
+                      handlePrev();
+                    }
+                  }}
+                  className="w-full h-full absolute inset-0 cursor-grab active:cursor-grabbing"
+                >
+                  {renderedPages[currentPage - 1]}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Text Mode - Original book-style display */
+        <div className="flex-1 overflow-visible px-5 py-6 flex flex-col justify-center select-none">
+          <div className="relative w-full max-w-sm mx-auto aspect-[7/10] flex flex-col">
+            
+            {/* Stacked Pages Behind (Visual Aesthetics) */}
+            <div className="absolute inset-y-1.5 -right-2.5 w-full h-full rounded-md border opacity-40 z-0 bg-[#ebdcb9] border-[#d8c599]" style={{ transform: 'translateY(5px)' }} />
+            <div className="absolute inset-y-1 -right-1.5 w-full h-full rounded-md border opacity-75 z-0 bg-[#f5ebd0] border-[#e0cfa5]" style={{ transform: 'translateY(3px)' }} />
+            <div className="absolute inset-y-0.5 -right-0.5 w-full h-full rounded-md border opacity-90 z-0 bg-[#fcf8f0] border-[#ebdcb9]" style={{ transform: 'translateY(1.5px)' }} />
+
+            {/* GPU Hardware-Accelerated Sliding Reader */}
+            <div className="relative flex-1 w-full h-full z-10 overflow-hidden rounded-md shadow-lg bg-[#fffdf9]">
+              <AnimatePresence initial={false} custom={direction} mode="popLayout">
+                <motion.div
+                  key={currentPage}
+                  custom={direction}
+                  variants={slideVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    x: { type: 'tween', ease: 'easeOut', duration: 0.2 },
+                    opacity: { duration: 0.15 }
+                  }}
+                  drag="x"
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.4}
+                  onDragEnd={(_, info) => {
+                    const swipeThreshold = 50;
+                    if (info.offset.x < -swipeThreshold) {
+                      handleNext();
+                    } else if (info.offset.x > swipeThreshold) {
+                      handlePrev();
+                    }
+                  }}
+                  className="w-full h-full absolute inset-0 cursor-grab active:cursor-grabbing"
+                >
+                  {renderedPages[currentPage - 1]}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bottom Nav Control Bar */}
-      <div className="relative z-30 px-5 py-4 border-t flex flex-col gap-3 shrink-0 bg-[#faf6eb] border-[#ebdcb9]">
+      <div className={`relative z-30 px-5 py-4 border-t flex flex-col gap-3 shrink-0 bg-[#faf6eb] border-[#ebdcb9] ${isFullscreen ? 'hidden' : ''}`}>
         {/* Progress Bar */}
         <div className="w-full h-1 rounded-full overflow-hidden bg-[#ebdcb9]">
           <div 
@@ -411,7 +495,7 @@ export const EbookRead = () => {
           </button>
 
           <span className="text-[9px] font-bold font-sans text-slate-400 uppercase tracking-widest">
-            Selesai {totalPages > 0 ? ((currentPage / totalPages) * 100).toFixed(0) : 0}%
+            {currentPage}/{totalPages}
           </span>
 
           <button 
@@ -428,6 +512,18 @@ export const EbookRead = () => {
           </button>
         </div>
       </div>
+
+      {/* Fullscreen tap to show/hide controls */}
+      {isPdfEbook && isFullscreen && (
+        <div 
+          className="fixed inset-0 z-40 bg-gradient-to-br from-[#f8f3e8] via-[#eedfb8] to-[#e4d3a2] flex items-center justify-center"
+          onClick={() => setIsFullscreen(false)}
+        >
+          <div className="w-full h-full max-w-lg p-4 flex items-center justify-center">
+            {renderedPages[currentPage - 1]}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

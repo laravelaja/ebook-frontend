@@ -265,3 +265,20 @@ html, body {
   border-radius: 0.15em;
   padding: 0.05em 0.15em;
 }
+
+
+/* PDF Page Image Styles */
+.pdf-page-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* Override preview-content styles for PDF pages */
+.preview-content .pdf-page-image {
+  margin: 0;
+  border-radius: 0;
+  max-width: 100%;
+  max-height: 100%;
+}

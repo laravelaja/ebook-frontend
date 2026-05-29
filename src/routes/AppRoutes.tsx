@@ -16,6 +16,7 @@ import { InfoDetail } from '../features/users/pages/info/InfoDetail';
 import { CreatorDashboard } from '../features/users/pages/creator/CreatorDashboard';
 import { EbookForm } from '../features/users/pages/creator/EbookForm';
 import { WriteChapter } from '../features/users/pages/creator/WriteChapter';
+import { PdfUpload } from '../features/users/pages/creator/PdfUpload';
 
 // Capacitor & Supabase
 import { App } from '@capacitor/app';
@@ -177,6 +178,7 @@ export const AppRoutes = () => {
         <Route path="/creator/new" element={<AuthGuard><EbookForm /></AuthGuard>} />
         <Route path="/creator/edit/:id" element={<AuthGuard><EbookForm /></AuthGuard>} />
         <Route path="/creator/write/:id" element={<AuthGuard><WriteChapter /></AuthGuard>} />
+        <Route path="/creator/upload-pdf" element={<AuthGuard><PdfUpload /></AuthGuard>} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
