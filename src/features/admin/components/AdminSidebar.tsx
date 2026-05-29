@@ -38,7 +38,7 @@ export const AdminSidebar = ({ isOpen, onClose }: AdminSidebarProps) => {
       }`}
     >
       {/* Logo / Brand */}
-      <div className="px-5 py-5 border-b border-slate-700/50 flex items-center justify-between">
+      <div className="px-5 pt-[calc(env(safe-area-inset-top,0px)+20px)] md:pt-5 pb-5 border-b border-slate-700/50 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center">
             <IconShieldCheck size={16} className="text-white" />

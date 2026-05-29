@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { 
   IconArrowLeft, IconPlus, 
   IconTrash, IconDeviceFloppy, IconEye, IconPencil, IconBook,
@@ -23,6 +24,7 @@ interface EbookPage {
 export const WriteChapter = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [book, setBook] = useState<any>(null);
   const [pages, setPages] = useState<EbookPage[]>([]);
@@ -271,6 +273,9 @@ export const WriteChapter = () => {
           updatedPages[newPageIndex] = { ...updatedPages[newPageIndex], id: String(savedPage.id) };
           setPages(updatedPages);
         }
+        queryClient.invalidateQueries({ queryKey: ['myBooks'] });
+        queryClient.invalidateQueries({ queryKey: ['ebooks'] });
+        queryClient.invalidateQueries({ queryKey: ['ebook', id] });
       } catch (err) {
         console.error('Error creating new page:', err);
       }
@@ -296,6 +301,9 @@ export const WriteChapter = () => {
       if (pageToDelete.id && id) {
         try {
           await ebooksApi.deletePage(id, pageToDelete.id);
+          queryClient.invalidateQueries({ queryKey: ['myBooks'] });
+          queryClient.invalidateQueries({ queryKey: ['ebooks'] });
+          queryClient.invalidateQueries({ queryKey: ['ebook', id] });
         } catch (err) {
           console.error('Error deleting page:', err);
           alert('Gagal menghapus bab. Silakan coba lagi.');
@@ -343,6 +351,9 @@ export const WriteChapter = () => {
           <button
             onClick={async () => {
               await handleSavePage();
+              queryClient.invalidateQueries({ queryKey: ['myBooks'] });
+              queryClient.invalidateQueries({ queryKey: ['ebooks'] });
+              queryClient.invalidateQueries({ queryKey: ['ebook', id] });
               navigate('/creator');
             }}
             className="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 cursor-pointer border-none transition-colors"

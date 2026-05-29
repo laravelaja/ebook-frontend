@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { IconArrowLeft, IconBook, IconCamera, IconPhoto, IconTrash } from '@tabler/icons-react';
 import { ebooksApi } from '../../../../api/ebooks';
@@ -9,6 +10,7 @@ import { useEbookById, useCategories } from '../../../../hooks/useApiData';
 export const EbookForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const isEdit = !!id;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -99,9 +101,14 @@ export const EbookForm = () => {
 
       if (isEdit && id) {
         await ebooksApi.update(id, payload);
+        queryClient.invalidateQueries({ queryKey: ['myBooks'] });
+        queryClient.invalidateQueries({ queryKey: ['ebooks'] });
+        queryClient.invalidateQueries({ queryKey: ['ebook', id] });
         navigate('/creator');
       } else {
         const saved = await ebooksApi.create(payload);
+        queryClient.invalidateQueries({ queryKey: ['myBooks'] });
+        queryClient.invalidateQueries({ queryKey: ['ebooks'] });
         navigate(`/creator/write/${saved.id}`);
       }
     } catch (error) {
